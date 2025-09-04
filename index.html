@@ -237,13 +237,13 @@
     } else if (mode==="power"){
       const x=rng(2,5), p=rng(2,4), y=rng(2,5), q=rng(2,3);
       const prompt = `Evaluate \( ${x}^{${p}} - ${y}^{${q}} \).`;
-      const ans = x**p - y**q; const hint = `Compute powers separately, then subtract.`; const explain = `${x}^${p}=${x**p} and ${y}^${q}=${y**q}, so answer is ${ans}.`;
+      const ans = x**p - y**q; const hint = `Compute powers separately, then subtract.`; const explain = `\\(${x}^{${p}}=${x**p},\; ${y}^{${q}}=${y**q} \\Rightarrow ${ans}\\).`;
       const {choices, correctIndex} = buildNumericMCQ(ans);
       return {skill:"arithmetic", type:"mcq", prompt, choices, correctIndex, hint, explain};
     } else {
       const a=rng(2,9), b=rng(1,9), c=rng(1,9);
       const prompt = `Compute \( ${a}(${b}+${c}) - ${c}^2 \).`;
-      const ans = a*(b+c) - c**2; const hint = `Distribute then subtract ${c}^2.`; const explain = `${a}(${b}+${c})=${a*b + a*c}; subtract ${c*c} to get ${ans}.`;
+      const ans = a*(b+c) - c**2; const hint = `Distribute then subtract ${c}^2.`; const explain = `\\(${a}(${b}+${c})=${a*b + a*c}\\), then subtract \\(${c}^2\\) to get \\(${ans}\\).`;
       const {choices, correctIndex} = buildNumericMCQ(ans);
       return {skill:"arithmetic", type:"mcq", prompt, choices, correctIndex, hint, explain};
   }
@@ -252,7 +252,7 @@
     let a=rng(2,9); const b=rng(-9,9), c=rng(-9,9); if (a===0) a=2; const x=(c-b)/a;
     const prompt=`Solve for x: \( ${a}x ${b>=0?'+':'-'} ${Math.abs(b)} = ${c} \).`;
     const hint=`Isolate x: subtract ${b>=0?b:('('+b+')')} then divide by ${a}.`;
-    const explain=`${a}x = ${c} ${b>=0?'-':'+'} ${Math.abs(b)} = ${fmt(c-b)}; \; x = (${fmt(c-b)})/${a} = ${fmt(x)}.`;
+    const explain=`\\(${a}x = ${c} ${b>=0?'-':'+'} ${Math.abs(b)} = ${fmt(c-b)};\\; x = (${fmt(c-b)})/${a} = ${fmt(x)}\\).`;
     const {choices, correctIndex} = buildNumericMCQ(x);
     return {skill:"algebra", type:"mcq", prompt, choices, correctIndex, hint, explain};
   }
@@ -264,7 +264,7 @@
     const opts = shuffle([correct, ...distractors]); const idx = opts.indexOf(correct);
     const prompt = `Expand: \( (${a}x ${b>=0?'+':'-'} ${Math.abs(b)})(${c}x ${d>=0?'+':'-'} ${Math.abs(d)}) \).`;
     const hint = `Use FOIL (distribute).`;
-    const explain = `\(${a}x+b\)\(${c}x+d\) = ${A}x^2 + ${B}x + ${C}.`;
+    const explain = `\\( (${a}x+${b})(${c}x+${d}) = ${A}x^2 + ${B}x + ${C} \\)`;
     return {skill:"algebra", type:"mcq", prompt, choices:opts, correctIndex:idx, hint, explain};
   }
   function genFactor(){
@@ -275,8 +275,8 @@
     const w3 = `(x ${-r1>=0?'+':''}${-r1})(x ${-r2>=0?'+':''}${-r2 + (r1===r2?1:0)})`;
     const opts = shuffle([correct, w1, w2, w3]); const idx = opts.indexOf(correct);
     const prompt = `Factor: \( x^2 ${s>=0?'+':'-'} ${Math.abs(s)}x ${p>=0?'+':'-'} ${Math.abs(p)} \).`;
-    const hint = `Find integers r_1, r_2 with r_1+r_2=${-s} and r_1\cdot r_2=${p}.`;
-    const explain = `(x - r_1)(x - r_2) with r_1=${r1}, r_2=${r2}.`;
+    const hint = `Find integers \(r_1, r_2\) with \(r_1+r_2=${-s}\) and \(r_1\cdot r_2=${p}\).`;
+    const explain = `\((x - r_1)(x - r_2)\), with \(r_1=${r1},\; r_2=${r2}\).`;
     return {skill:"algebra", type:"mcq", prompt, choices:opts, correctIndex:idx, hint, explain};
   }
   function genDerivativePoint(){
