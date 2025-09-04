@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Algebra Sprint — Minimal (LaTeX)</title>
+  <script>
+  // Helper removed: use normal strings with double backslashes for LaTeX
+    // Queue elements for typesetting until MathJax is ready
+    window.__mjxQueue = [];
+    window.__mjxReady = false;
+    window.MathJax = {
+      tex: {
+        inlineMath: [["\\(","\\)"],["$","$"]],
+        displayMath: [["\\[","\\]"],["$$","$$"]],
+        processEscapes: true
+      },
+      svg: { fontCache: 'global' },
+      startup: {
+        typeset: true,
+        ready: () => {
+          MathJax.startup.defaultReady();
+          window.__mjxReady = true;
+          if (window.__mjxQueue && window.__mjxQueue.length){
+            const els = Array.from(new Set(window.__mjxQueue));
+            try{ if (MathJax.typesetClear){ MathJax.typesetClear(els); } }catch(_){ }
+            MathJax.typesetPromise(els).catch(()=>{});
+            window.__mjxQueue.length = 0;
+          }
+        }
+      }
+    };
+  </script>
+  <!-- Use the full TeX bundle so macros like \dfrac render correctly -->
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg-full.js"></script>
+  <style>
+    :root{
+      --bg:#0f1222; --card:#171a2e; --ink:#e9ecff; --ink-dim:#b9bfe6;
+      --accent:#6ee7ff; --accent-2:#a8ff6e; --muted:#222640; --radius:16px;
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+    [data-theme="light"]{
+      --bg:#f7f8ff; --card:#ffffff; --ink:#0f1126; --ink-dim:#30345a;
+      --accent:#1889ff; --accent-2:#00a36c; --muted:#ebedf7; --shadow:0 8px 24px rgba(16,24,40,.15);
+    }
+    *{box-sizing:border-box}
+    body{ margin:0; background:var(--bg); color:var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial}
+    header{ display:flex; align-items:center; justify-content:space-between;
+      padding:16px clamp(16px, 3vw, 28px); position:sticky; top:0; z-index:10;
+      background:linear-gradient(180deg, rgba(0,0,0,.15), transparent); backdrop-filter:saturate(140%) blur(8px); }
+    .brand{display:flex; gap:12px; align-items:center}
+    .brand .logo{ width:36px; height:36px; border-radius:10px;
+      background: radial-gradient(120% 120% at 10% 0%, var(--accent), transparent 60%),
+                  radial-gradient(120% 120% at 90% 100%, var(--accent-2), transparent 60%), var(--card);
+      box-shadow:var(--shadow); border:1px solid rgba(255,255,255,.08);
+    }
+    .brand h1{font-size:18px; margin:0; letter-spacing:.3px}
+    .controls{display:flex; gap:10px; align-items:center}
+    button{ appearance:none; border:none; border-radius:12px; padding:12px 16px;
+      background:var(--accent); color:#071018; font-weight:700; cursor:pointer; box-shadow:var(--shadow); }
+    button.secondary{ background:var(--muted); color:var(--ink); font-weight:600 }
+    main{ max-width:960px; margin:0 auto; padding:24px clamp(16px, 3vw, 28px); }
+    .cards{ display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:14px; }
+    .card{ background:var(--card); border-radius:var(--radius); padding:16px; border:1px solid rgba(255,255,255,.06); box-shadow:var(--shadow); }
+    .pill{ font-size:12px; padding:4px 8px; border-radius:999px; background:var(--muted); color:var(--ink-dim); font-weight:700 }
+    .skill-title{font-weight:800; margin:6px 0 8px 0}
+    .skill-desc{font-size:13px; color:var(--ink-dim); min-height:34px}
+    .progress{ height:10px; border-radius:999px; background:var(--muted); overflow:hidden; margin-top:10px }
+    .bar{ height:100%; width:0%; background:linear-gradient(90deg, var(--accent), var(--accent-2)); transition:width .35s ease }
+    .session{ margin-top:22px; display:none }
+    .problem-card{ background:var(--card); border-radius:var(--radius); padding:18px; border:1px solid rgba(255,255,255,.06); box-shadow:var(--shadow) }
+    .prompt{font-size:18px; font-weight:800; margin:0 0 12px 0}
+    .subtle{ color:var(--ink-dim); font-size:13px; margin-bottom:8px }
+    .mcq{ display:grid; gap:10px; margin-top:8px }
+    .mcq button{text-align:left; background:var(--muted)}
+    .answer-row{ display:flex; gap:10px; align-items:center; margin-top:8px }
+    input[type="text"]{ flex:1; padding:12px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.12);
+      background:transparent; color:var(--ink); font-size:16px; outline:none }
+    .feedback{ margin-top:12px; padding:10px 12px; border-radius:12px; background:var(--muted); display:none; font-weight:700 }
+    .hint{ font-size:14px; color:var(--ink-dim); margin-top:8px; display:none }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center }
+    .spacer{ height:14px }
+    .footer{ margin-top:26px; font-size:13px; color:var(--ink-dim); text-align:center }
+    @media (max-width:560px){ .cards{ grid-template-columns: 1fr } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand" role="banner" aria-label="Algebra Sprint">
+      <div class="logo" aria-hidden="true"></div>
+      <h1>Algebra Sprint — Minimal</h1>
+    </div>
+    <div class="controls">
+      <button class="secondary" id="themeToggle" aria-label="Toggle theme">🌙</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="cards" id="skills">
+      <div class="card">
+        <div class="pill">Skill</div>
+        <div class="skill-title">Arithmetic & Simplify</div>
+        <div class="skill-desc">Fractions, exponents, order–of–operations.</div>
+        <button data-skill="arithmetic">Practice</button>
+      </div>
+
+      <div class="card">
+        <div class="pill">Skill</div>
+        <div class="skill-title">Linear & Quadratic</div>
+        <div class="skill-desc">Solve \(ax+b=c\), expand, factor nice quadratics.</div>
+        <button data-skill="algebra">Practice</button>
+      </div>
+
+      <div class="card">
+        <div class="pill">Skill</div>
+        <div class="skill-title">Calculus Intuition</div>
+        <div class="skill-desc">Derivative-at-a-point patterns, simple limits.</div>
+        <button data-skill="calculus">Practice</button>
+      </div>
+
+      <div class="card">
+        <div class="pill">Mode</div>
+        <div class="skill-title">Mixed Session</div>
+        <div class="skill-desc">A short set across all skills. 10 questions, instant feedback.</div>
+        <button data-skill="mixed">Start 10‑Q Sprint</button>
+      </div>
+    </section>
+
+    <section class="session" id="session" aria-live="polite">
+      <div class="problem-card" id="problemCard">
+        <div class="row">
+          <div class="pill" id="skillTag">Skill</div>
+          <div class="pill" id="progressTag">0 / 10</div>
+          <button class="secondary" id="homeBtn" style="margin-left:auto">Home</button>
+        </div>
+        <p class="prompt" id="prompt">Prompt goes here</p>
+        <p class="subtle" id="instruction">Type your answer. You can use fractions like 3/4, and symbols like \(\pi\), \(e\), and ^ for powers.</p>
+
+        <div id="inputArea" class="answer-row">
+          <input type="text" id="answerInput" inputmode="decimal" aria-label="Your answer" placeholder="Type answer…" />
+          <button id="checkBtn">Check</button>
+        </div>
+
+        <div id="mcqArea" class="mcq" role="group" aria-label="Choices" style="display:none"></div>
+
+        <div class="row">
+          <button class="secondary" id="hintBtn">Hint</button>
+          <button class="secondary" id="skipBtn" title="Skip">Skip</button>
+        </div>
+
+        <div class="feedback" id="feedback"></div>
+        <div class="hint" id="hint"></div>
+
+        <div class="spacer"></div>
+        <div class="progress"><div class="bar" id="sessionBar"></div></div>
+      </div>
+      <div class="footer">Shortcuts: Enter to check, H for hint.</div>
+    </section>
+  </main>
+
+  <script>
+  const $ = (id)=>document.getElementById(id);
+  const rng=(min,max)=>Math.floor(Math.random()*(max-min+1))+min;
+  const choice=(arr)=>arr[Math.floor(Math.random()*arr.length)];
+  const shuffle=(arr)=>arr.map(v=>[Math.random(),v]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]);
+  const fmt = (x)=> (Math.abs(x) < 1e-12 ? "0" : (Number.isInteger(x) ? String(x) : String(+x.toFixed(6))).replace(/\.0+$/,''));
+  // Build multiple-choice numeric options around the correct answer
+  function buildNumericMCQ(ans){
+    const correct = fmt(ans);
+    const opts = new Set([correct]);
+    const base = Number(correct);
+    const seed = [base + 1, base - 1, -base, base * 2, base / 2, base + 0.5, base - 0.5];
+    seed.forEach(v=>{ if (opts.size < 4) opts.add(fmt(v)); });
+    while (opts.size < 4){
+      const v = base + (rng(-9,9))/rng(2,6);
+      opts.add(fmt(v));
+      if (opts.size > 10) break; // safety
+    }
+    const choices = shuffle(Array.from(opts)).slice(0,4);
+    const correctIndex = choices.indexOf(correct);
+    return { choices, correctIndex };
+  }
+  function parseNumber(input){
+    const s = String(input).trim(); if(!s) return NaN;
+    if (/^-?\d+\/-?\d+$/.test(s)){ const [a,b]=s.split('/').map(Number); if (b===0) return NaN; return a/b; }
+    if (/^[\+\-]?\d*\.?\d+(e[\+\-]?\d+)?$/i.test(s)) return Number(s);
+    if (/^[0-9\.\+\-\*\/\^\(\)\sπpie]+$/i.test(s)){
+      let expr = s.replace(/π/gi, Math.PI).replace(/\be\b/g, Math.E).replace(/\^/g, '**');
+      try{ const val = Function('"use strict"; return ('+expr+')')(); return typeof val==="number" && isFinite(val) ? val : NaN; }catch{ return NaN; }
+    }
+    return NaN;
+  }
+  function nearlyEqual(a,b,eps=1e-6){ const scale = Math.max(1, Math.abs(a), Math.abs(b)); return Math.abs(a-b) <= eps * scale; }
+  function typeset(el){
+    if (window.MathJax && MathJax.typesetPromise && window.__mjxReady){
+      try{ if (MathJax.typesetClear){ MathJax.typesetClear([el]); } }catch(_){}
+      MathJax.typesetPromise([el]).catch(()=>{});
+    } else {
+      (window.__mjxQueue || (window.__mjxQueue=[])).push(el);
+    }
+  }
+
+  function genArithmetic(){
+    const mode = choice(["fraction","power","mixed"]);
+    if (mode==="fraction"){
+      const a=rng(1,9), b=rng(2,9), c=rng(1,9), d=rng(2,9);
+      const prompt = `Compute \( \frac{${a}}{${b}} + \frac{${c}}{${d}} \).`;
+      const ans = a/b + c/d;
+      const hint = `Common denominator is ${b*d}.`;
+      const explain = `\(\frac{${a}}{${b}}+\frac{${c}}{${d}} = \frac{${a*d}+${c*b}}{${b*d}} = ${fmt((a*d+c*b)/(b*d))}\).`;
+      const {choices, correctIndex} = buildNumericMCQ(ans);
+      return {skill:"arithmetic", type:"mcq", prompt, choices, correctIndex, hint, explain};
+    } else if (mode==="power"){
+      const x=rng(2,5), p=rng(2,4), y=rng(2,5), q=rng(2,3);
+      const prompt = `Evaluate \( ${x}^{${p}} - ${y}^{${q}} \).`;
+      const ans = x**p - y**q; const hint = `Compute powers separately, then subtract.`; const explain = `${x}^${p}=${x**p} and ${y}^${q}=${y**q}, so answer is ${ans}.`;
+      const {choices, correctIndex} = buildNumericMCQ(ans);
+      return {skill:"arithmetic", type:"mcq", prompt, choices, correctIndex, hint, explain};
+    } else {
+      const a=rng(2,9), b=rng(1,9), c=rng(1,9);
+      const prompt = `Compute \( ${a}(${b}+${c}) - ${c}^2 \).`;
+      const ans = a*(b+c) - c**2; const hint = `Distribute then subtract ${c}^2.`; const explain = `${a}(${b}+${c})=${a*b + a*c}; subtract ${c*c} to get ${ans}.`;
+      const {choices, correctIndex} = buildNumericMCQ(ans);
+      return {skill:"arithmetic", type:"mcq", prompt, choices, correctIndex, hint, explain};
+  }
+  }
+  function genLinear(){
+    let a=rng(2,9); const b=rng(-9,9), c=rng(-9,9); if (a===0) a=2; const x=(c-b)/a;
+    const prompt=`Solve for x: \( ${a}x ${b>=0?'+':'-'} ${Math.abs(b)} = ${c} \).`;
+    const hint=`Isolate x: subtract ${b>=0?b:('('+b+')')} then divide by ${a}.`;
+    const explain=`${a}x = ${c} ${b>=0?'-':'+'} ${Math.abs(b)} = ${fmt(c-b)}; \; x = (${fmt(c-b)})/${a} = ${fmt(x)}.`;
+    const {choices, correctIndex} = buildNumericMCQ(x);
+    return {skill:"algebra", type:"mcq", prompt, choices, correctIndex, hint, explain};
+  }
+  function genExpand(){
+    const a=rng(1,6), b=rng(-6,6), c=rng(1,6), d=rng(-6,6);
+    const A=a*c, B=a*d + b*c, C=b*d;
+    const correct = `${A}x^2 ${B>=0?'+':''}${B}x ${C>=0?'+':''}${C}`;
+    const distractors = [ `${A}x^2 ${B>=0?'+':''}${B}x ${-C>=0?'+':''}${-C}`, `${A}x^2 ${-B>=0?'+':''}${-B}x ${C>=0?'+':''}${C}`, `${(a+b)*(c+d)}x^2 ${B>=0?'+':''}${B}x ${C>=0?'+':''}${C}` ];
+    const opts = shuffle([correct, ...distractors]); const idx = opts.indexOf(correct);
+    const prompt = `Expand: \( (${a}x ${b>=0?'+':'-'} ${Math.abs(b)})(${c}x ${d>=0?'+':'-'} ${Math.abs(d)}) \).`;
+    const hint = `Use FOIL (distribute).`;
+    const explain = `\(${a}x+b\)\(${c}x+d\) = ${A}x^2 + ${B}x + ${C}.`;
+    return {skill:"algebra", type:"mcq", prompt, choices:opts, correctIndex:idx, hint, explain};
+  }
+  function genFactor(){
+    const r1=rng(-7,7) || 1; const r2=rng(-7,7) || -1; const s = -(r1 + r2); const p = r1 * r2;
+    const correct = `(x ${-r1>=0?'+':''}${-r1})(x ${-r2>=0?'+':''}${-r2})`;
+    const w1 = `(x ${r1>=0?'+':''}${r1})(x ${-r2>=0?'+':''}${-r2})`;
+    const w2 = `(x ${-r1>=0?'+':''}${-r1})(x ${r2>=0?'+':''}${r2})`;
+    const w3 = `(x ${-r1>=0?'+':''}${-r1})(x ${-r2>=0?'+':''}${-r2 + (r1===r2?1:0)})`;
+    const opts = shuffle([correct, w1, w2, w3]); const idx = opts.indexOf(correct);
+    const prompt = `Factor: \( x^2 ${s>=0?'+':'-'} ${Math.abs(s)}x ${p>=0?'+':'-'} ${Math.abs(p)} \).`;
+    const hint = `Find integers r_1, r_2 with r_1+r_2=${-s} and r_1\cdot r_2=${p}.`;
+    const explain = `(x - r_1)(x - r_2) with r_1=${r1}, r_2=${r2}.`;
+    return {skill:"algebra", type:"mcq", prompt, choices:opts, correctIndex:idx, hint, explain};
+  }
+  function genDerivativePoint(){
+    const a = rng(-3,3);
+    const pattern = choice(["powerChain","sinLinear","expQuad","product"]);
+    let prompt, ans, hint, explain;
+    if (pattern==="powerChain"){
+      const k=rng(2,5), m=rng(1,4), n=rng(2,4);
+      prompt = `Compute \\(f'(${a})\\) for \\(f(x)=( ${k}x + ${m} )^{${n}}\\).`;
+      ans = n * (k*a+m)**(n-1) * k;
+      hint = `\\((u^n)' = n u^{n-1} u'\\) with \\(u=${k}x+${m}\\).`;
+      explain = `\\(f'(x)=${n}(${k}x+${m})^{${n-1}}\\cdot ${k}\\). Evaluate at \\(x=${a}\\).`;
+    } else if (pattern==="sinLinear"){
+      const k=rng(2,6), m=rng(-3,3);
+      prompt = `Compute \\(f'(${a})\\) for \\(f(x)=\\sin(${k}x ${m>=0?'+':'-'} ${Math.abs(m)})\\).`;
+      ans = Math.cos(k*a + m) * k;
+      hint = `\\((\\sin u)' = \\cos u \\cdot u'\\) with \\(u=${k}x+${m}\\).`;
+      explain = `\\(f'(x)=${k}\\cos(${k}x+${m})\\). Evaluate at \\(x=${a}\\).`;
+    } else if (pattern==="expQuad"){
+      const k=rng(1,3), m=rng(1,3);
+      prompt = `Compute \\(f'(${a})\\) for \\(f(x)=e^{${k}x^2 + ${m}}\\).`;
+      ans = Math.exp(k*a*a + m) * (2*k*a);
+      hint = `\\((e^{u})' = e^{u}\\cdot u'\\) with \\(u=${k}x^2+${m}\\).`;
+      explain = `\\(f'(x)=e^{${k}x^2+${m}}\\cdot ${2*k}x\\). Evaluate at \\(x=${a}\\).`;
+    } else {
+      const A=rng(1,4), B=rng(-4,4), C=rng(1,4);
+      prompt = `Compute \\(f'(${a})\\) for \\(f(x)=(${A}x ${B>=0?'+':'-'} ${Math.abs(B)})\\sin(${C}x)\\).`;
+      const fp = A*Math.sin(C*a) + (A*a+B)*Math.cos(C*a)*C;
+      ans = fp;
+      hint = `Product rule: \\(u'v + uv'\\), and \\((\\sin cx)'=c\\cos cx\\).`;
+      explain = `\\(f'(x)=${A}\\sin(${C}x)+(${A}x+${B})\\cdot ${C}\\cos(${C}x)\\). Evaluate at \\(x=${a}\\).`;
+    }
+    const {choices, correctIndex} = buildNumericMCQ(ans);
+    return {skill:"calculus", type:"mcq", prompt, choices, correctIndex, hint, explain};
+  }
+  function genLimit(){
+    const x0 = rng(-5,5);
+    const prompt = `Compute \\( \\lim_{h\\to 0} \\dfrac{( ${x0}+h )^2 - (${x0})^2}{h} \\).`;
+    const ans = 2*x0;
+    const hint = `Expand numerator then cancel h: \\((x_0+h)^2 - x_0^2 = 2x_0 h + h^2\\).`;
+    const explain = `\\(= \\lim_{h\\to 0} (2x_0 + h) = 2 \\cdot ${x0}\\).`;
+    const {choices, correctIndex} = buildNumericMCQ(ans);
+    return {skill:"calculus", type:"mcq", prompt, choices, correctIndex, hint, explain};
+  }
+  function makeProblem(skill){
+    if (skill==="arithmetic") return choice([genArithmetic, genArithmetic, genArithmetic])();
+    if (skill==="algebra")   return choice([genLinear, genExpand, genFactor])();
+    if (skill==="calculus")  return choice([genDerivativePoint, genLimit])();
+    return choice([genArithmetic, genLinear, genExpand, genFactor, genDerivativePoint, genLimit])();
+  }
+
+  const state = { running:false, queue:[], total:10, index:0, current:null, skill:"mixed" };
+  function startSession(skill){
+    state.running=true; state.skill=skill; state.index=0; state.queue=[]; state.total = (skill==="mixed") ? 10 : 8;
+    for (let i=0;i<state.total;i++){ state.queue.push(makeProblem(skill==="mixed" ? "mixed" : skill)); }
+    document.querySelectorAll("#skills .card button").forEach(b=>b.disabled=true);
+    $("session").style.display="block"; nextProblem();
+  }
+  function endSession(){
+    $("sessionBar").style.width = "100%";
+    const panel = $("feedback"); panel.className="feedback"; panel.style.display="block"; panel.innerHTML = `Session complete — nice work!`;
+    document.querySelectorAll("#skills .card button").forEach(b=>b.disabled=false);
+  }
+  function nextProblem(){
+    if (window.MathJax && MathJax.typesetClear) { try{ MathJax.typesetClear([$("problemCard")]); }catch(_){} }
+    if (state.index>=state.total){ endSession(); return; }
+    const p = state.queue[state.index]; state.current = p;
+    $("skillTag").textContent = p.skill.charAt(0).toUpperCase()+p.skill.slice(1);
+    $("progressTag").textContent = `${state.index+1} / ${state.total}`;
+    $("prompt").innerHTML = p.prompt; typeset($("prompt"));
+    $("hint").style.display="none"; $("hint").innerHTML = p.hint || ""; typeset($("hint"));
+    $("feedback").style.display="none";
+    $("sessionBar").style.width = Math.round((state.index/state.total)*100) + "%";
+    // Always render as MCQ for mobile friendliness
+    $("instruction").textContent = "Choose the correct answer.";
+    const area = $("mcqArea"); area.innerHTML="";
+    p.choices.forEach((c,i)=>{ const btn=document.createElement("button"); btn.className="secondary"; btn.innerHTML = `\\(${c}\\)`; btn.addEventListener("click", ()=> checkMCQ(i)); area.appendChild(btn); });
+    $("mcqArea").style.display="grid"; $("inputArea").style.display="none"; typeset($("mcqArea"));
+  }
+  function checkNumeric(){
+    const p = state.current; if (!p) return; const val = parseNumber($("answerInput").value);
+    const ok = nearlyEqual(val, p.answer); const panel = $("feedback"); panel.style.display="block";
+    if (ok){ panel.innerHTML = `✅ Correct! ${p.explain ? '<br>'+p.explain : ''}`; typeset(panel); state.index++; setTimeout(nextProblem, 450); }
+    else { panel.innerHTML = `❌ Not quite. ${p.explain ? '<br>'+p.explain : ''}<br><span class=\"subtle\">Expected approximately ${fmt(p.answer)}.</span>`; typeset(panel); state.queue.push(makeProblem(p.skill)); state.total++; $("progressTag").textContent = `${state.index+1} / ${state.total}`; }
+  }
+  function checkMCQ(idx){
+    const p = state.current; if (!p) return; const correct = idx===p.correctIndex; const panel = $("feedback"); panel.style.display="block";
+    if (correct){ panel.innerHTML = `✅ Correct! ${p.explain ? '<br>'+p.explain : ''}`; typeset(panel); state.index++; setTimeout(nextProblem, 450); }
+    else { panel.innerHTML = `❌ Not quite. ${p.explain ? '<br>'+p.explain : ''}`; typeset(panel); state.queue.push(makeProblem(p.skill)); state.total++; $("progressTag").textContent = `${state.index+1} / ${state.total}`; }
+  }
+
+  document.querySelectorAll("#skills .card button").forEach(btn=>{ btn.addEventListener("click", ()=> startSession(btn.dataset.skill)); });
+  $("checkBtn").addEventListener("click", checkNumeric);
+  $("answerInput").addEventListener("keydown", (e)=>{ if (e.key==="Enter"){ e.preventDefault(); checkNumeric(); } if (e.key.toLowerCase()==="h"){ e.preventDefault(); toggleHint(); } });
+  $("hintBtn").addEventListener("click", toggleHint);
+  $("skipBtn").addEventListener("click", ()=>{ state.index++; nextProblem(); });
+  $("homeBtn").addEventListener("click", ()=>{ state.running=false; document.querySelectorAll("#skills .card button").forEach(b=>b.disabled=false); $("session").style.display="none"; });
+  function toggleHint(){ const h=$("hint"); h.style.display = h.style.display==="none" ? "block" : "none"; typeset(h); }
+
+  const root=document.documentElement; const savedTheme = localStorage.getItem('as_theme'); if (savedTheme){ root.setAttribute('data-theme', savedTheme); $("themeToggle").textContent = savedTheme==="light"?"🌙":"☀️"; }
+  $("themeToggle").addEventListener("click", ()=>{ const isLight = root.getAttribute("data-theme")==="light"; root.setAttribute("data-theme", isLight? "dark":"light"); $("themeToggle").textContent = isLight? "🌙":"☀️"; localStorage.setItem('as_theme', isLight? 'dark':'light'); });
+  // Ensure any static LaTeX on initial view is rendered
+  typeset(document.body);
+  </script>
+</body>
+</html>
