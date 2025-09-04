@@ -240,6 +240,22 @@
   const abs = (v)=> Math.abs(v);
   const lin = (k,m,x='x')=> `${k}${x} ${sign(m)} ${abs(m)}`;
   const coef = (k)=> k===1? '' : (k===-1? '-' : String(k));
+  // Format polynomial Ax^2 + Bx + C with 0-term removal
+  function polyStr(A,B,C){
+    const terms=[];
+    if (A!==0){ terms.push(A===1? 'x^2' : (A===-1? '-x^2' : `${A}x^2`)); }
+    if (B!==0){
+      const tb = Math.abs(B)===1? 'x' : `${Math.abs(B)}x`;
+      if (terms.length===0) terms.push(B<0? `-${tb}` : `${tb}`);
+      else terms.push(B<0? `- ${tb}` : `+ ${tb}`);
+    }
+    if (C!==0){
+      const tc = `${Math.abs(C)}`;
+      if (terms.length===0) terms.push(C<0? `-${tc}` : `${tc}`);
+      else terms.push(C<0? `- ${tc}` : `+ ${tc}`);
+    }
+    return terms.length? terms.join(' ') : '0';
+  }
   // Ensure 5 unique choices including the correct answer
   function finalizeChoices(candidates, correct, need=5){
     const set = new Set();
@@ -315,30 +331,40 @@
     } else {
       const a=rng(2,9), b=rng(1,9), c=rng(1,9);
       const prompt = `Compute $${a}(${b}+${c}) - ${c}^2$.`;
-      const ans = a*(b+c) - c**2; const hint = `Distribute then subtract ${c}^2.`; const explain = `\\(${a}(${b}+${c})=${a*b + a*c}\\), then subtract \\(${c}^2\\) to get \\(${ans}\\).`;
+      const dist = a*b + a*c;
+      const c2 = c*c;
+      const ans = a*(b+c) - c2;
+      const hint = c2===0 ? `Distribute.` : `Distribute then subtract ${c}^2.`;
+      const explain = c2===0
+        ? `\\(${a}(${b}+${c}) = ${dist}\\).`
+        : `\\(${a}(${b}+${c}) - ${c}^2 = ${a*b}+${a*c} - ${c2} = ${ans}\\).`;
       const {choices, correctIndex} = buildNumericMCQ(ans);
       return {skill:"arithmetic", type:"mcq", prompt, choices, correctIndex, hint, explain};
-  }
+    }
   }
   function genLinear(){
     let a=rng(2,9); const b=rng(-9,9), c=rng(-9,9); if (a===0) a=2; const x=(c-b)/a;
     const prompt=`Solve for x: $${a}x ${b>=0?'+':'-'} ${Math.abs(b)} = ${c}$.`;
     const hint=`Isolate x: subtract ${b>=0?b:('('+b+')')} then divide by ${a}.`;
-    const explain=`\\(${a}x = ${c} ${b>=0?'-':'+'} ${Math.abs(b)} = ${fmt(c-b)};\\; x = (${fmt(c-b)})/${a} = ${fmt(x)}\\).`;
+    const explain = (b===0)
+      ? `\\(${a}x = ${c};\\; x = ${c}/${a} = ${fmt(x)}\\).`
+      : `\\(${a}x = ${c} ${b>=0?'-':'+'} ${Math.abs(b)} = ${fmt(c-b)};\\; x = (${fmt(c-b)})/${a} = ${fmt(x)}\\).`;
     const {choices, correctIndex} = buildNumericMCQ(x);
     return {skill:"algebra", type:"mcq", prompt, choices, correctIndex, hint, explain};
   }
   function genExpand(){
     const a=rng(1,6), b=rng(-6,6), c=rng(1,6), d=rng(-6,6);
     const A=a*c, B=a*d + b*c, C=b*d;
-    const correct = `${A}x^2 ${B>=0?'+':''}${B}x ${C>=0?'+':''}${C}`;
-    const distractors = [ `${A}x^2 ${B>=0?'+':''}${B}x ${-C>=0?'+':''}${-C}`, `${A}x^2 ${-B>=0?'+':''}${-B}x ${C>=0?'+':''}${C}`, `${(a+b)*(c+d)}x^2 ${B>=0?'+':''}${B}x ${C>=0?'+':''}${C}` ];
-    const extra = `${A}x^2 ${B>=0?'+':''}${B}x`; // drops constant term
-    const cands = shuffle([ ...distractors, extra ]);
+    const correct = polyStr(A,B,C);
+    const d1 = polyStr(A,B,-C);
+    const d2 = polyStr(A,-B,C);
+    const d3 = polyStr((a+b)*(c+d), B, C);
+    const extra = polyStr(A,B,0); // drops constant term
+    const cands = shuffle([ d1,d2,d3,extra ]);
     const {choices, correctIndex} = finalizeChoices(cands, correct, 5);
     const prompt = `Expand: $(${a}x ${b>=0?'+':'-'} ${Math.abs(b)})(${c}x ${d>=0?'+':'-'} ${Math.abs(d)})$.`;
     const hint = `Use FOIL (distribute).`;
-    const explain = `\\( (${a}x+${b})(${c}x+${d}) = ${A}x^2 + ${B}x + ${C} \\)`;
+    const explain = `\\( (${a}x+${b})(${c}x+${d}) = ${polyStr(A,B,C)} \\)`;
     return {skill:"algebra", type:"mcq", prompt, choices, correctIndex, hint, explain};
   }
   function genFactor(){
@@ -399,7 +425,8 @@
       hint = `\\((e^{u})' = e^{u}\\cdot u'\\) with \\(u=${k}x^2+${m}\\).`;
       explain = `\\(f'(x)=e^{${k}x^2+${m}}\\cdot ${2*k}x\\). Evaluate at \\(x=${a}\\).`;
       const expv = `${k*a*a + m}`;
-      const correct = `${coef(2*k*a)}e^{${expv}}`;
+      const factor = 2*k*a;
+      const correct = factor===0? '0' : `${coef(factor)}e^{${expv}}`;
       const d1 = `${2*k}e^{${expv}}`; // forgot to plug x=a
       const d2 = `e^{${expv}}`;      // missing factor
       const d3 = `e^{${k}x^2+${m}}\\cdot ${2*k}x`; // not evaluated at a
@@ -412,14 +439,23 @@
       const fp = A*Math.sin(C*a) + (A*a+B)*Math.cos(C*a)*C;
       ans = fp;
       hint = `Product rule: \\(u'v + uv'\\), and \\((\\sin cx)'=c\\cos cx\\).`;
-      explain = `\\(f'(x)=${A}\\sin(${C}x)+(${A}x+${B})\\cdot ${C}\\cos(${C}x)\\). Evaluate at \\(x=${a}\\).`;
       const ca = `${C*a}`;
-      const correct = `${coef(A)}\\sin(${ca}) + (${A*a+B})\\,${coef(C)}\\cos(${ca})`;
-      const d1 = `${coef(A)}\\cos(${ca}) + (${A*a+B})\\,${coef(C)}\\sin(${ca})`;
-      const d2 = `${coef(A)}\\sin(${ca}) + (${A*a+B})\\cos(${ca})`; // missing C
-      const d3 = `${coef(A)}\\sin(${ca}) - (${A*a+B})\\,${coef(C)}\\cos(${ca})`;
-      const d4 = `${coef(-A)}\\sin(${ca}) + (${A*a+B})\\,${coef(C)}\\cos(${ca})`;
+      const ampCos = (A*a+B)*C;
+      const term1 = `${coef(A)}\\sin(${ca})`;
+      const term2 = ampCos===0? '' : `${coef(ampCos)}\\cos(${ca})`;
+      const correct = term2? `${term1} ${term2.startsWith('-')?'':'+'} ${term2}` : term1;
+      const evalStr = term2? `${term1} ${term2.startsWith('-')?'':'+'} ${term2}` : term1;
+      const d1t2 = ampCos===0? '' : `${coef(ampCos)}\\sin(${ca})`;
+      const d1 = d1t2? `${coef(A)}\\cos(${ca}) ${d1t2.startsWith('-')?'':'+'} ${d1t2}` : `${coef(A)}\\cos(${ca})`;
+      const d2t2amp = (A*a+B); // missing C
+      const d2t2 = d2t2amp===0? '' : `${coef(d2t2amp)}\\cos(${ca})`;
+      const d2 = d2t2? `${term1} ${d2t2.startsWith('-')?'':'+'} ${d2t2}` : term1;
+      const d3t2 = ampCos===0? '' : `${coef(-ampCos)}\\cos(${ca})`;
+      const d3 = d3t2? `${term1} ${d3t2.startsWith('-')?'':'+'} ${d3t2}` : term1;
+      const d4term1 = `${coef(-A)}\\sin(${ca})`;
+      const d4 = term2? `${d4term1} ${term2.startsWith('-')?'':'+'} ${term2}` : d4term1;
       const {choices:ch4, correctIndex:ci4} = finalizeChoices([d1,d2,d3,d4], correct, 5);
+      const explain = `\\(f'(x)=${A}\\sin(${C}x)+(${A}x+${B})\\cdot ${C}\\cos(${C}x)\\). Evaluate at \\(x=${a}\\): \\(${evalStr}\\).`;
       return {skill:"calculus", type:"mcq", prompt, choices:ch4, correctIndex:ci4, hint, explain};
     }
     // Fallback shouldn't happen, but ensure we return something
