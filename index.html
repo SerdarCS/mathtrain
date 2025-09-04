@@ -49,6 +49,7 @@
     header{ display:flex; align-items:center; justify-content:space-between;
       padding:16px clamp(16px, 3vw, 28px); position:sticky; top:0; z-index:10;
       background:linear-gradient(180deg, rgba(0,0,0,.15), transparent); backdrop-filter:saturate(140%) blur(8px); }
+    body.modal-open header{ display:none }
     .brand{display:flex; gap:12px; align-items:center}
     .brand .logo{ width:36px; height:36px; border-radius:10px;
       background: radial-gradient(120% 120% at 10% 0%, var(--accent), transparent 60%),
@@ -71,7 +72,8 @@
     /* Open exercises in a fixed overlay panel to avoid page scroll */
     .session{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; padding:clamp(12px,3vw,28px); background:rgba(0,0,0,.45); z-index:999 }
     .session.open{ display:flex }
-    .problem-card{ background:var(--card); border-radius:var(--radius); padding:22px; border:1px solid rgba(255,255,255,.08); box-shadow:var(--shadow); width:min(960px,96vw); max-height:min(90vh,820px); overflow:auto; overscroll-behavior:contain }
+    .problem-card{ background:var(--card); border-radius:var(--radius); padding:24px 22px 26px; border:1px solid rgba(255,255,255,.08); box-shadow:var(--shadow); width:min(960px,96vw); max-height:min(90vh,820px); overflow:auto; overscroll-behavior:contain }
+    .problem-card > .row:first-child{ margin-bottom:10px }
     body.modal-open{ overflow:hidden }
     .prompt{font-size:18px; font-weight:800; margin:12px 0 14px 0; line-height:1.35}
     .subtle{ color:var(--ink-dim); font-size:13px; margin-bottom:10px }
@@ -426,6 +428,7 @@
     for (let i=0;i<state.total;i++){ state.queue.push(makeProblem(skill==="mixed" ? "mixed" : skill)); }
     document.querySelectorAll("#skills .card button").forEach(b=>b.disabled=true);
     $("session").classList.add("open"); document.body.classList.add('modal-open');
+    try{ window.scrollTo(0,0); }catch(_){ }
     nextProblem();
   }
   function endSession(){
@@ -466,7 +469,16 @@
   $("answerInput").addEventListener("keydown", (e)=>{ if (e.key==="Enter"){ e.preventDefault(); checkNumeric(); } if (e.key.toLowerCase()==="h"){ e.preventDefault(); toggleHint(); } });
   $("hintBtn").addEventListener("click", toggleHint);
   $("skipBtn").addEventListener("click", ()=>{ state.index++; nextProblem(); });
-  $("homeBtn").addEventListener("click", ()=>{ state.running=false; document.querySelectorAll("#skills .card button").forEach(b=>b.disabled=false); $("session").classList.remove("open"); document.body.classList.remove('modal-open'); });
+  $("homeBtn").addEventListener("click", ()=>{
+    state.running=false;
+    document.querySelectorAll("#skills .card button").forEach(b=>b.disabled=false);
+    $("session").classList.remove("open"); document.body.classList.remove('modal-open');
+    try{ window.scrollTo(0,0); }catch(_){ }
+  });
+  // Optional: close when clicking backdrop (not the card)
+  $("session").addEventListener('click', (e)=>{
+    if (e.target === $("session")) { $("homeBtn").click(); }
+  });
   function toggleHint(){ const h=$("hint"); h.style.display = h.style.display==="none" ? "block" : "none"; typeset(h); }
 
   const root=document.documentElement; const savedTheme = localStorage.getItem('as_theme'); if (savedTheme){ root.setAttribute('data-theme', savedTheme); $("themeToggle").textContent = savedTheme==="light"?"🌙":"☀️"; }
