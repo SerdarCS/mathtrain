@@ -84,7 +84,7 @@
     /* Full-screen session that behaves like its own page */
     .session{ position:fixed; inset:0; display:none; background:var(--bg); z-index:9999 }
     .session.open{ display:block }
-    .problem-card{ position:relative; background:var(--bg); border-radius:0; padding:clamp(12px,3.5vw,22px); border:none; box-shadow:none; width:100vw; height:100vh; overflow:auto; overscroll-behavior:contain; display:flex; flex-direction:column }
+    .problem-card{ position:relative; background:var(--bg); border-radius:0; padding:clamp(12px,3.5vw,22px); border:none; box-shadow:none; width:100vw; max-height:100vh; overflow-y:auto; overscroll-behavior:contain; display:flex; flex-direction:column }
     .problem-card > .row:first-child{ margin-bottom:10px }
     body.modal-open{ overflow:hidden }
     .prompt{font-size:clamp(17px,4.2vw,20px); font-weight:800; margin:6px 0 10px 0; line-height:1.3}
