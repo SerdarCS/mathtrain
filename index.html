@@ -132,6 +132,13 @@
       </div>
 
       <div class="card">
+        <div class="pill">Skill</div>
+        <div class="skill-title">Probability Basics</div>
+        <div class="skill-desc">Coins, dice, combinations, and simple EV.</div>
+        <button data-skill="probability">Practice</button>
+      </div>
+
+      <div class="card">
         <div class="pill">Mode</div>
         <div class="skill-title">Mixed Session</div>
         <div class="skill-desc">A short set across all skills. 10 questions, instant feedback.</div>
@@ -179,9 +186,31 @@
   const fmt = (x)=> (Math.abs(x) < 1e-12 ? "0" : (Number.isInteger(x) ? String(x) : String(+x.toFixed(6))).replace(/\.0+$/,''));
   const gcd = (a,b)=>{ a=Math.abs(a); b=Math.abs(b); while(b){ [a,b]=[b,a%b]; } return a||1; };
   const fracStr = (num, den)=>{ const s = (den<0?-1:1); num*=s; den*=s; const g=gcd(num,den); num/=g; den/=g; return den===1? String(num):`\\frac{${num}}{${den}}`; };
+  // Fraction helpers for exact probability arithmetic
+  const reduceFrac = (n,d)=>{ const s = d<0?-1:1; n*=s; d*=s; const g=gcd(n,d); return {n:n/g, d:d/g}; };
+  const addFrac = (n1,d1,n2,d2)=> reduceFrac(n1*d2 + n2*d1, d1*d2);
+  const subFrac = (n1,d1,n2,d2)=> reduceFrac(n1*d2 - n2*d1, d1*d2);
+  const mulFrac = (n1,d1,n2,d2)=> reduceFrac(n1*n2, d1*d2);
+  const divFrac = (n1,d1,n2,d2)=> reduceFrac(n1*d2, d1*n2);
+  const toFracStr = (f)=> fracStr(f.n, f.d);
   const sign = (v)=> v>=0?'+':'-';
   const abs = (v)=> Math.abs(v);
   const lin = (k,m,x='x')=> `${k}${x} ${sign(m)} ${abs(m)}`;
+  const coef = (k)=> k===1? '' : (k===-1? '-' : String(k));
+  // Ensure 5 unique choices including the correct answer
+  function finalizeChoices(candidates, correct, need=5){
+    const set = new Set();
+    if (correct!=null) set.add(String(correct));
+    (candidates||[]).forEach(x=>{ if (x!=null){ const s=String(x); if(!set.has(s)) set.add(s); } });
+    const fillers = ['0','1','2','3','4','-1','\\frac{1}{2}','\\frac{2}{3}','e'];
+    for (const f of fillers){ if (set.size>=need) break; if (!set.has(f)) set.add(f); }
+    const arr = shuffle(Array.from(set));
+    const choices = arr.slice(0, need);
+    return { choices, correctIndex: choices.indexOf(String(correct)) };
+  }
+  const fact = (n)=>{ let r=1; for(let i=2;i<=n;i++) r*=i; return r; };
+  const nCr = (n,r)=>{ if(r<0||r>n) return 0; r=Math.min(r,n-r); let num=1,den=1; for(let i=1;i<=r;i++){ num*= (n-r+i); den*=i; } return Math.round(num/den); };
+  const nPr = (n,r)=>{ if(r<0||r>n) return 0; let v=1; for(let i=0;i<r;i++) v*= (n-i); return v; };
   const oneOver = (k)=>{
     if (k===1) return '';
     if (k===-1) return '-';
@@ -194,13 +223,13 @@
     const opts = new Set([correct]);
     const base = Number(correct);
     const seed = [base + 1, base - 1, -base, base * 2, base / 2, base + 0.5, base - 0.5];
-    seed.forEach(v=>{ if (opts.size < 4) opts.add(fmt(v)); });
-    while (opts.size < 4){
+    seed.forEach(v=>{ if (opts.size < 5) opts.add(fmt(v)); });
+    while (opts.size < 5){
       const v = base + (rng(-9,9))/rng(2,6);
       opts.add(fmt(v));
-      if (opts.size > 10) break; // safety
+      if (opts.size > 12) break; // safety
     }
-    const choices = shuffle(Array.from(opts)).slice(0,4);
+    const choices = shuffle(Array.from(opts)).slice(0,5);
     const correctIndex = choices.indexOf(correct);
     return { choices, correctIndex };
   }
@@ -228,7 +257,7 @@
     const mode = choice(["fraction","power","mixed"]);
     if (mode==="fraction"){
       const a=rng(1,9), b=rng(2,9), c=rng(1,9), d=rng(2,9);
-      const prompt = `Compute \( \frac{${a}}{${b}} + \frac{${c}}{${d}} \).`;
+      const prompt = `Compute $\\frac{${a}}{${b}} + \\frac{${c}}{${d}}$.`;
       const ans = a/b + c/d;
       const hint = `Common denominator is ${b*d}.`;
       const explain = `\(\frac{${a}}{${b}}+\frac{${c}}{${d}} = \frac{${a*d}+${c*b}}{${b*d}} = ${fmt((a*d+c*b)/(b*d))}\).`;
@@ -236,13 +265,13 @@
       return {skill:"arithmetic", type:"mcq", prompt, choices, correctIndex, hint, explain};
     } else if (mode==="power"){
       const x=rng(2,5), p=rng(2,4), y=rng(2,5), q=rng(2,3);
-      const prompt = `Evaluate \( ${x}^{${p}} - ${y}^{${q}} \).`;
+      const prompt = `Evaluate $${x}^{${p}} - ${y}^{${q}}$.`;
       const ans = x**p - y**q; const hint = `Compute powers separately, then subtract.`; const explain = `\\(${x}^{${p}}=${x**p},\; ${y}^{${q}}=${y**q} \\Rightarrow ${ans}\\).`;
       const {choices, correctIndex} = buildNumericMCQ(ans);
       return {skill:"arithmetic", type:"mcq", prompt, choices, correctIndex, hint, explain};
     } else {
       const a=rng(2,9), b=rng(1,9), c=rng(1,9);
-      const prompt = `Compute \( ${a}(${b}+${c}) - ${c}^2 \).`;
+      const prompt = `Compute $${a}(${b}+${c}) - ${c}^2$.`;
       const ans = a*(b+c) - c**2; const hint = `Distribute then subtract ${c}^2.`; const explain = `\\(${a}(${b}+${c})=${a*b + a*c}\\), then subtract \\(${c}^2\\) to get \\(${ans}\\).`;
       const {choices, correctIndex} = buildNumericMCQ(ans);
       return {skill:"arithmetic", type:"mcq", prompt, choices, correctIndex, hint, explain};
@@ -250,7 +279,7 @@
   }
   function genLinear(){
     let a=rng(2,9); const b=rng(-9,9), c=rng(-9,9); if (a===0) a=2; const x=(c-b)/a;
-    const prompt=`Solve for x: \( ${a}x ${b>=0?'+':'-'} ${Math.abs(b)} = ${c} \).`;
+    const prompt=`Solve for x: $${a}x ${b>=0?'+':'-'} ${Math.abs(b)} = ${c}$.`;
     const hint=`Isolate x: subtract ${b>=0?b:('('+b+')')} then divide by ${a}.`;
     const explain=`\\(${a}x = ${c} ${b>=0?'-':'+'} ${Math.abs(b)} = ${fmt(c-b)};\\; x = (${fmt(c-b)})/${a} = ${fmt(x)}\\).`;
     const {choices, correctIndex} = buildNumericMCQ(x);
@@ -261,11 +290,13 @@
     const A=a*c, B=a*d + b*c, C=b*d;
     const correct = `${A}x^2 ${B>=0?'+':''}${B}x ${C>=0?'+':''}${C}`;
     const distractors = [ `${A}x^2 ${B>=0?'+':''}${B}x ${-C>=0?'+':''}${-C}`, `${A}x^2 ${-B>=0?'+':''}${-B}x ${C>=0?'+':''}${C}`, `${(a+b)*(c+d)}x^2 ${B>=0?'+':''}${B}x ${C>=0?'+':''}${C}` ];
-    const opts = shuffle([correct, ...distractors]); const idx = opts.indexOf(correct);
-    const prompt = `Expand: \( (${a}x ${b>=0?'+':'-'} ${Math.abs(b)})(${c}x ${d>=0?'+':'-'} ${Math.abs(d)}) \).`;
+    const extra = `${A}x^2 ${B>=0?'+':''}${B}x`; // drops constant term
+    const cands = shuffle([ ...distractors, extra ]);
+    const {choices, correctIndex} = finalizeChoices(cands, correct, 5);
+    const prompt = `Expand: $(${a}x ${b>=0?'+':'-'} ${Math.abs(b)})(${c}x ${d>=0?'+':'-'} ${Math.abs(d)})$.`;
     const hint = `Use FOIL (distribute).`;
     const explain = `\\( (${a}x+${b})(${c}x+${d}) = ${A}x^2 + ${B}x + ${C} \\)`;
-    return {skill:"algebra", type:"mcq", prompt, choices:opts, correctIndex:idx, hint, explain};
+    return {skill:"algebra", type:"mcq", prompt, choices, correctIndex, hint, explain};
   }
   function genFactor(){
     const r1=rng(-7,7) || 1; const r2=rng(-7,7) || -1; const s = -(r1 + r2); const p = r1 * r2;
@@ -273,53 +304,65 @@
     const w1 = `(x ${r1>=0?'+':''}${r1})(x ${-r2>=0?'+':''}${-r2})`;
     const w2 = `(x ${-r1>=0?'+':''}${-r1})(x ${r2>=0?'+':''}${r2})`;
     const w3 = `(x ${-r1>=0?'+':''}${-r1})(x ${-r2>=0?'+':''}${-r2 + (r1===r2?1:0)})`;
-    const opts = shuffle([correct, w1, w2, w3]); const idx = opts.indexOf(correct);
-    const prompt = `Factor: \( x^2 ${s>=0?'+':'-'} ${Math.abs(s)}x ${p>=0?'+':'-'} ${Math.abs(p)} \).`;
+    const w4 = `(x ${r1>=0?'+':''}${r1})(x ${r2>=0?'+':''}${r2})`;
+    const cands = shuffle([ w1, w2, w3, w4 ]);
+    const {choices:choicesF, correctIndex:ciF} = finalizeChoices(cands, correct, 5);
+    const prompt = `Factor: $x^2 ${s>=0?'+':'-'} ${Math.abs(s)}x ${p>=0?'+':'-'} ${Math.abs(p)}$.`;
     const hint = `Find integers \(r_1, r_2\) with \(r_1+r_2=${-s}\) and \(r_1\cdot r_2=${p}\).`;
     const explain = `\((x - r_1)(x - r_2)\), with \(r_1=${r1},\; r_2=${r2}\).`;
-    return {skill:"algebra", type:"mcq", prompt, choices:opts, correctIndex:idx, hint, explain};
+    return {skill:"algebra", type:"mcq", prompt, choices:choicesF, correctIndex:ciF, hint, explain};
   }
   function genDerivativePoint(){
     const a = rng(-3,3);
     const pattern = choice(["powerChain","sinLinear","expQuad","product"]);
     let prompt, ans, hint, explain;
     if (pattern==="powerChain"){
-      const k=rng(2,5), m=rng(1,4), n=rng(2,4);
+      let k=rng(2,5), m=rng(1,4), n=rng(2,4);
+      // keep (k*a+m) manageable for mental math
+      let ua = k*a + m; let guard=0;
+      while (Math.abs(ua) > 5 && guard++ < 10){ k=rng(2,5); m=rng(1,4); ua = k*a + m; }
       prompt = `Compute \\(f'(${a})\\) for \\(f(x)=( ${k}x + ${m} )^{${n}}\\).`;
       ans = n * (k*a+m)**(n-1) * k;
       hint = `\\((u^n)' = n u^{n-1} u'\\) with \\(u=${k}x+${m}\\).`;
       explain = `\\(f'(x)=${n}(${k}x+${m})^{${n-1}}\\cdot ${k}\\). Evaluate at \\(x=${a}\\).`;
-      // 50%: offer a symbolic unevaluated answer to avoid calculators
-      if (Math.random()<0.5){
-        const correct = `${n}(${k}\\cdot ${a}+${m})^{${n-1}}\\cdot ${k}`;
-        const distractors=[ `${n}(${k}\\cdot ${a}+${m})^{${n}}`, `${n-1}(${k}\\cdot ${a}+${m})^{${n-1}}\\cdot ${k}`, `${n}(${k}x+${m})^{${n-1}}` ];
-        const opts = shuffle([correct,...distractors]);
-        return {skill:"calculus", type:"mcq", prompt, choices:opts, correctIndex:opts.indexOf(correct), hint, explain};
-      }
+      // Always symbolic answer to avoid calculators
+      const nk = n*k;
+      const correct = `${nk}(${ua})^{${n-1}}`;
+      const d1 = `${n}(${ua})^{${n-1}}`; // missing chain factor
+      const d2 = `${nk}(${ua})^{${n}}`;  // wrong power
+      const d3 = `${nk}(${ua+1})^{${n-1}}`; // shifted input
+      const d4 = `${k}(${ua})^{${n-1}}`;
+      const {choices:ch1, correctIndex:ci1} = finalizeChoices([d1,d2,d3,d4], correct, 5);
+      return {skill:"calculus", type:"mcq", prompt, choices:ch1, correctIndex:ci1, hint, explain};
     } else if (pattern==="sinLinear"){
       const k=rng(2,6), m=rng(-3,3);
       prompt = `Compute \\(f'(${a})\\) for \\(f(x)=\\sin(${k}x ${m>=0?'+':'-'} ${Math.abs(m)})\\).`;
       ans = Math.cos(k*a + m) * k;
       hint = `\\((\\sin u)' = \\cos u \\cdot u'\\) with \\(u=${k}x+${m}\\).`;
       explain = `\\(f'(x)=${k}\\cos(${k}x+${m})\\). Evaluate at \\(x=${a}\\).`;
-      if (Math.random()<0.55){
-        const correct = `${k}\\cos(${k*a + m})`;
-        const distractors = [ `\\cos(${k*a + m})`, `${k}\\sin(${k*a + m})`, `-${k}\\cos(${k*a + m})` ];
-        const opts=shuffle([correct,...distractors]);
-        return {skill:"calculus", type:"mcq", prompt, choices:opts, correctIndex:opts.indexOf(correct), hint, explain};
-      }
+      const angle = `${k*a + m}`;
+      const ck = coef(k);
+      const correct = `${ck}\\cos(${angle})`;
+      const alt1 = `${ck}\\sin(${angle})`;
+      const alt2 = `${coef(-k)}\\cos(${angle})`;
+      const alt3 = `${coef(k===1?2:k+1)}\\cos(${angle})`;
+      const alt4 = `${ck}\\cos(${angle}+1)`;
+      const {choices:ch2, correctIndex:ci2} = finalizeChoices([alt1,alt2,alt3,alt4], correct, 5);
+      return {skill:"calculus", type:"mcq", prompt, choices:ch2, correctIndex:ci2, hint, explain};
     } else if (pattern==="expQuad"){
       const k=rng(1,3), m=rng(1,3);
       prompt = `Compute \\(f'(${a})\\) for \\(f(x)=e^{${k}x^2 + ${m}}\\).`;
       ans = Math.exp(k*a*a + m) * (2*k*a);
       hint = `\\((e^{u})' = e^{u}\\cdot u'\\) with \\(u=${k}x^2+${m}\\).`;
       explain = `\\(f'(x)=e^{${k}x^2+${m}}\\cdot ${2*k}x\\). Evaluate at \\(x=${a}\\).`;
-      if (Math.random()<0.55){
-        const correct = `e^{${k*a*a + m}}\\cdot ${2*k}\\cdot ${a}`;
-        const distractors = [ `${2*k}e^{${k*a*a+m}}`, `e^{${k}x^2+${m}}\\cdot ${2*k}x`, `e^{${k*a*a + m}}` ];
-        const opts=shuffle([correct,...distractors]);
-        return {skill:"calculus", type:"mcq", prompt, choices:opts, correctIndex:opts.indexOf(correct), hint, explain};
-      }
+      const expv = `${k*a*a + m}`;
+      const correct = `${coef(2*k*a)}e^{${expv}}`;
+      const d1 = `${2*k}e^{${expv}}`; // forgot to plug x=a
+      const d2 = `e^{${expv}}`;      // missing factor
+      const d3 = `e^{${k}x^2+${m}}\\cdot ${2*k}x`; // not evaluated at a
+      const d4 = `${2*a}e^{${expv}}`;
+      const {choices:ch3, correctIndex:ci3} = finalizeChoices([d1,d2,d3,d4], correct, 5);
+      return {skill:"calculus", type:"mcq", prompt, choices:ch3, correctIndex:ci3, hint, explain};
     } else {
       const A=rng(1,4), B=rng(-4,4), C=rng(1,4);
       prompt = `Compute \\(f'(${a})\\) for \\(f(x)=(${A}x ${B>=0?'+':'-'} ${Math.abs(B)})\\sin(${C}x)\\).`;
@@ -327,13 +370,16 @@
       ans = fp;
       hint = `Product rule: \\(u'v + uv'\\), and \\((\\sin cx)'=c\\cos cx\\).`;
       explain = `\\(f'(x)=${A}\\sin(${C}x)+(${A}x+${B})\\cdot ${C}\\cos(${C}x)\\). Evaluate at \\(x=${a}\\).`;
-      if (Math.random()<0.6){
-        const correct = `${A}\\sin(${C*a}) + (${A}\\cdot ${a}+${B})\\cdot ${C}\\cos(${C*a})`;
-        const distractors = [ `${A}\\cos(${C*a}) + (${A}\\cdot ${a}+${B})\\cdot ${C}\\sin(${C*a})`, `${A}\\sin(${C*a}) + (${A}x+${B})\\cdot ${C}\\cos(${C*a})`, `${A}\\sin(${C*a}) + (${A}\\cdot ${a}+${B})\\cos(${C*a})` ];
-        const opts=shuffle([correct,...distractors]);
-        return {skill:"calculus", type:"mcq", prompt, choices:opts, correctIndex:opts.indexOf(correct), hint, explain};
-      }
+      const ca = `${C*a}`;
+      const correct = `${coef(A)}\\sin(${ca}) + (${A*a+B})\\,${coef(C)}\\cos(${ca})`;
+      const d1 = `${coef(A)}\\cos(${ca}) + (${A*a+B})\\,${coef(C)}\\sin(${ca})`;
+      const d2 = `${coef(A)}\\sin(${ca}) + (${A*a+B})\\cos(${ca})`; // missing C
+      const d3 = `${coef(A)}\\sin(${ca}) - (${A*a+B})\\,${coef(C)}\\cos(${ca})`;
+      const d4 = `${coef(-A)}\\sin(${ca}) + (${A*a+B})\\,${coef(C)}\\cos(${ca})`;
+      const {choices:ch4, correctIndex:ci4} = finalizeChoices([d1,d2,d3,d4], correct, 5);
+      return {skill:"calculus", type:"mcq", prompt, choices:ch4, correctIndex:ci4, hint, explain};
     }
+    // Fallback shouldn't happen, but ensure we return something
     const {choices, correctIndex} = buildNumericMCQ(ans);
     return {skill:"calculus", type:"mcq", prompt, choices, correctIndex, hint, explain};
   }
@@ -347,8 +393,139 @@
     const d1 = `${a}x^{${n+1}} + C`;
     const d2 = `${coeff}x^{${n}} + C`;
     const d3 = `${fracStr(a, n+2)}x^{${n+2}} + C`;
-    const opts = shuffle([correct, d1, d2, d3]);
-    return {skill:"calculus", type:"mcq", prompt:`Compute: \\( \\int ${a}x^{${n}}\\,dx \\)`, choices:opts, correctIndex:opts.indexOf(correct), hint:`Power rule: \\int x^n dx = x^{n+1}/(n+1) + C`, explain:`Antiderivative is \\(${correct}\\)`};
+    const d4 = `-${coeff}x^{${n+1}} + C`;
+    const {choices:chP, correctIndex:ciP} = finalizeChoices([d1,d2,d3,d4], correct, 5);
+    return {skill:"calculus", type:"mcq", prompt:`Compute: \\( \\int ${a}x^{${n}}\\,dx \\)`, choices:chP, correctIndex:ciP, hint:`Power rule: \\int x^n dx = x^{n+1}/(n+1) + C`, explain:`Antiderivative is \\(${correct}\\)`};
+  }
+  // Probability generators
+  function genCoinBinom(){
+    const n = rng(3,6); const k = rng(0,n);
+    const comb = nCr(n,k);
+    const prompt = `A fair coin is flipped ${n} times. What is $P(\\text{exactly }${k} \\text{ heads})$?`;
+    const correct = `${fracStr(comb, 2**n)}`;
+    const distract = new Set();
+    const tryPush=(s)=>{ if (s!==correct) distract.add(s); };
+    if (k-1>=0) tryPush(fracStr(nCr(n,k-1), 2**n));
+    if (k+1<=n) tryPush(fracStr(nCr(n,k+1), 2**n));
+    tryPush(fracStr(1, 2**n));
+    tryPush(fracStr(nCr(n,k), 2**(n-1)));
+    if (k-2>=0) tryPush(fracStr(nCr(n,k-2), 2**n));
+    const cand = shuffle(Array.from(distract));
+    const {choices:chB, correctIndex:ciB} = finalizeChoices(cand, correct, 5);
+    return {skill:"probability", type:"mcq", prompt, choices:chB, correctIndex:ciB, hint:`Use $\\binom{n}{k}/2^n$.`, explain:`$P=\\binom{${n}}{${k}}/2^{${n}} = ${correct}$.`};
+  }
+  function genTwoDiceSum(){
+    const s = rng(2,12);
+    const counts = {2:1,3:2,4:3,5:4,6:5,7:6,8:5,9:4,10:3,11:2,12:1};
+    const c = counts[s];
+    const prompt = `Two fair dice are rolled. What is $P(\\text{sum}=${s})$?`;
+    const correct = `${fracStr(c,36)}`;
+    const near = [s-1,s+1].filter(x=>counts[x]);
+    const dset = new Set();
+    near.forEach(x=> dset.add(fracStr(counts[x],36)));
+    dset.add(fracStr(c,12)); // wrong denominator
+    dset.add(fracStr(36-c,36)); // complement count
+    dset.add(fracStr(1,6)); // common mistake
+    const {choices:chD, correctIndex:ciD} = finalizeChoices(Array.from(dset), correct, 5);
+    return {skill:"probability", type:"mcq", prompt, choices:chD, correctIndex:ciD, hint:`Favorable outcomes over $36$.`, explain:`There are ${c} pairs giving ${s}, so $${correct}$.`};
+  }
+  function genIndependence(){
+    const dieEvents = [
+      {txt:'even', m:3},
+      {txt:'odd', m:3},
+      {txt:'prime', m:3}, // 2,3,5
+      {txt:'a multiple of 3', m:2},
+      {txt:'greater than 4', m:2},
+      {txt:'less than 3', m:2}
+    ];
+    const ev = choice(dieEvents);
+    const prompt = `A fair coin is flipped and a fair die is rolled. What is $P(\\text{Heads AND die is ${ev.txt}})$?`;
+    const correct = `${fracStr(ev.m,12)}`; // (1/2)*(m/6) = m/12
+    const ds = new Set([
+      fracStr(ev.m,6), // forgot multiply
+      fracStr(6-ev.m,12), // complement die event
+      fracStr(ev.m,36), // wrong denominator
+      fracStr(1,2) // coin only
+    ]);
+    const {choices:chI, correctIndex:ciI} = finalizeChoices(Array.from(ds), correct, 5);
+    return {skill:"probability", type:"mcq", prompt, choices:chI, correctIndex:ciI, hint:`Independence: multiply $1/2$ by $${fracStr(ev.m,6)}$.`, explain:`$P=\\frac12\\cdot \\frac{${ev.m}}{6} = ${correct}$.`};
+  }
+  function genExpectedDie(){
+    const mode = choice(['X','2X+1','X-1']);
+    const prompt = mode==='X'
+      ? `Let $X$ be a fair die roll. Compute $E[X]$.`
+      : (mode==='2X+1' ? `Let $X$ be a fair die roll. Compute $E[2X+1]$.` : `Let $X$ be a fair die roll. Compute $E[X-1]$.`);
+    const EX = fracStr(7,2);
+    let correct, distractors;
+    if (mode==='X'){
+      correct = EX; distractors = ['3','4', fracStr(8,3), fracStr(5,2)];
+    } else if (mode==='2X+1'){
+      correct = '8'; distractors = ['7', '9', fracStr(15,2), '6'];
+    } else {
+      correct = fracStr(5,2); distractors = ['2', EX, '3', fracStr(3,2)];
+    }
+    const {choices:chE, correctIndex:ciE} = finalizeChoices(distractors, correct, 5);
+    return {skill:"probability", type:"mcq", prompt, choices:chE, correctIndex:ciE, hint:`Use linearity of expectation.`, explain:`$E[X]=${EX}$.`};
+  }
+  function genBayesLikelihoods(){
+    // Given P(A), P(B|A), P(B|~A) compute P(A|B)
+    const dA = rng(3,6), a = rng(1,dA-1);
+    const e1 = rng(2,6), b1 = rng(1,e1-1);
+    const e2 = rng(2,6), b2 = rng(1,e2-1);
+    const pA = reduceFrac(a,dA);
+    const pNotA = reduceFrac(dA-a, dA);
+    const pB_A = reduceFrac(b1,e1);
+    const pB_notA = reduceFrac(b2,e2);
+    const pAB = mulFrac(pA.n,pA.d,pB_A.n,pB_A.d);
+    const pNotA_B = mulFrac(pNotA.n,pNotA.d,pB_notA.n,pB_notA.d);
+    const pB = addFrac(pAB.n,pAB.d,pNotA_B.n,pNotA_B.d);
+    const pA_given_B = divFrac(pAB.n,pAB.d,pB.n,pB.d);
+    const prompt = `Given $P(A)=${toFracStr(pA)}$, $P(B\\mid A)=${toFracStr(pB_A)}$, and $P(B\\mid \\neg A)=${toFracStr(pB_notA)}$, compute $P(A\\mid B)$.`;
+    const correct = toFracStr(pA_given_B);
+    const d1 = toFracStr(pB_A);
+    const d2 = toFracStr(pA);
+    const d3 = toFracStr(pNotA); // common confusion with complement
+    const d4 = toFracStr(pNotA_B); // numerator wrong part
+    const {choices, correctIndex} = finalizeChoices([d1,d2,d3,d4], correct, 5);
+    const hint = `Bayes: $P(A\\mid B)=\\dfrac{P(B\\mid A)P(A)}{P(B\\mid A)P(A)+P(B\\mid \\neg A)(1-P(A))}$.`;
+    const explain = `$= \\dfrac{${toFracStr(pB_A)}\\cdot ${toFracStr(pA)}}{${toFracStr(pB_A)}\\cdot ${toFracStr(pA)} + ${toFracStr(pB_notA)}\\cdot ${toFracStr(pNotA)}} = ${correct}$.`;
+    return {skill:"probability", type:"mcq", prompt, choices, correctIndex, hint, explain};
+  }
+  function genBayesGivenB(){
+    // Given P(A), P(B|A), P(B|~A), we can also present P(B) as a given and ask P(A|B)
+    // Compute P(B) exactly and present it.
+    const dA = rng(3,6), a = rng(1,dA-1);
+    const e1 = rng(2,6), b1 = rng(1,e1-1);
+    const e2 = rng(2,6), b2 = rng(1,e2-1);
+    const pA = reduceFrac(a,dA);
+    const pNotA = reduceFrac(dA-a, dA);
+    const pB_A = reduceFrac(b1,e1);
+    const pB_notA = reduceFrac(b2,e2);
+    const pAB = mulFrac(pA.n,pA.d,pB_A.n,pB_A.d);
+    const pNotA_B = mulFrac(pNotA.n,pNotA.d,pB_notA.n,pB_notA.d);
+    const pB = addFrac(pAB.n,pAB.d,pNotA_B.n,pNotA_B.d);
+    const pA_given_B = divFrac(pAB.n,pAB.d,pB.n,pB.d);
+    const prompt = `Given $P(A)=${toFracStr(pA)}$, $P(B)=${toFracStr(pB)}$, and $P(B\\mid A)=${toFracStr(pB_A)}$, compute $P(A\\mid B)$.`;
+    const correct = toFracStr(pA_given_B);
+    const d1 = toFracStr(pB_A);
+    const d2 = toFracStr(pA);
+    const d3 = toFracStr(pNotA);
+    const d4 = toFracStr(pB);
+    const {choices, correctIndex} = finalizeChoices([d1,d2,d3,d4], correct, 5);
+    const hint = `Bayes: $P(A\\mid B)=\\dfrac{P(B\\mid A)P(A)}{P(B)}$.`;
+    const explain = `$= \\dfrac{${toFracStr(pB_A)}\\cdot ${toFracStr(pA)}}{${toFracStr(pB)}} = ${correct}$.`;
+    return {skill:"probability", type:"mcq", prompt, choices, correctIndex, hint, explain};
+  }
+  function genChoose(){
+    const n = rng(5,8); const k = rng(1,n-1);
+    const prompt = `How many ways to choose ${k} items from ${n}?`;
+    const correct = String(nCr(n,k));
+    const d1 = String(nPr(n,k));
+    const d2 = String(nCr(n, Math.max(1, k-1)));
+    const d3 = String(nCr(n, Math.min(n-1, k+1)));
+    const d4 = String(n**k);
+    const {choices:chC, correctIndex:ciC} = finalizeChoices([d1,d2,d3,d4], correct, 5);
+    return {skill:"probability", type:"mcq", prompt, choices:chC, correctIndex:ciC, hint:`Use $\\binom{n}{k}$.`, explain:`$\\binom{${n}}{${k}} = ${correct}$.`};
   }
   function genIntegralTrig(){
     const k = rng(1,5) * (Math.random()<0.2?-1:1);
@@ -359,9 +536,11 @@
       const correct = `${oneOver(k)}\\sin(${k}x ${sign(m)} ${abs(m)}) + C`;
       const w1 = `-${oneOver(k)}\\sin(${k}x ${sign(m)} ${abs(m)}) + C`;
       const w2 = `${oneOver(k)}\\cos(${k}x ${sign(m)} ${abs(m)}) + C`;
-      const w3 = `${k}\\sin(${k}x ${sign(m)} ${abs(m)}) + C`;
-      const opts = shuffle([correct,w1,w2,w3]);
-      return {skill:"calculus", type:"mcq", prompt, choices:opts, correctIndex:opts.indexOf(correct), hint:`\\int \\cos(u)du = \\sin(u) + C, \\; du = ${k}dx`, explain:`Multiply by \\(${oneOver(k)||'1'}\\) for chain.`};
+      const k2 = Math.abs(k)+1;
+      const w3 = `${coef(k2)}\\sin(${k}x ${sign(m)} ${abs(m)}) + C`;
+      const w4 = `-${oneOver(k)}\\cos(${k}x ${sign(m)} ${abs(m)}) + C`;
+      const {choices:chT1, correctIndex:ciT1} = finalizeChoices([w1,w2,w3,w4], correct, 5);
+      return {skill:"calculus", type:"mcq", prompt, choices:chT1, correctIndex:ciT1, hint:`\\int \\cos(u)du = \\sin(u) + C, \\; du = ${k}dx`, explain:`Multiply by \\(${oneOver(k)||'1'}\\) for chain.`};
     } else {
       // integral of sin(kx+m)
       const prompt = `Compute: \\( \\int \\sin(${k}x ${sign(m)} ${abs(m)})\\,dx \\)`;
@@ -369,9 +548,11 @@
       const correct = `${factor}\\cos(${k}x ${sign(m)} ${abs(m)}) + C`;
       const w1 = `${fracStr(1,k)}\\cos(${k}x ${sign(m)} ${abs(m)}) + C`;
       const w2 = `${factor}\\sin(${k}x ${sign(m)} ${abs(m)}) + C`;
-      const w3 = `${k}\\cos(${k}x ${sign(m)} ${abs(m)}) + C`;
-      const opts = shuffle([correct,w1,w2,w3]);
-      return {skill:"calculus", type:"mcq", prompt, choices:opts, correctIndex:opts.indexOf(correct), hint:`\\int \\sin(u)du = -\\cos(u) + C`, explain:`Chain factor \\(${oneOver(k)||'1'}\\).`};
+      const k2 = Math.abs(k)+1;
+      const w3 = `${coef(k2)}\\cos(${k}x ${sign(m)} ${abs(m)}) + C`;
+      const w4 = `${fracStr(1,k)}\\sin(${k}x ${sign(m)} ${abs(m)}) + C`;
+      const {choices:chT2, correctIndex:ciT2} = finalizeChoices([w1,w2,w3,w4], correct, 5);
+      return {skill:"calculus", type:"mcq", prompt, choices:chT2, correctIndex:ciT2, hint:`\\int \\sin(u)du = -\\cos(u) + C`, explain:`Chain factor \\(${oneOver(k)||'1'}\\).`};
     }
   }
   function genIntegralExp(){
@@ -379,11 +560,12 @@
     const b = rng(-3,3);
     const prompt = `Compute: \\( \\int e^{${a}x ${sign(b)} ${abs(b)}}\\,dx \\)`;
     const correct = `${oneOver(a)}e^{${a}x ${sign(b)} ${abs(b)}} + C`;
-    const w1 = `e^{${a}x ${sign(b)} ${abs(b)}} + C`;
-    const w2 = `${a}e^{${a}x ${sign(b)} ${abs(b)}} + C`;
-    const w3 = `${oneOver(a)}e^{${a}x} + C`;
-    const opts = shuffle([correct,w1,w2,w3]);
-    return {skill:"calculus", type:"mcq", prompt, choices:opts, correctIndex:opts.indexOf(correct), hint:`\\int e^{ax}dx = e^{ax}/a + C`, explain:`Chain factor \\(${oneOver(a)||'1'}\\).`};
+    const w1 = `${oneOver(-a)}e^{${a}x ${sign(b)} ${abs(b)}} + C`; // wrong overall factor sign
+    const w2 = `${oneOver(a)}e^{${a}x ${sign(-b)} ${abs(b)}} + C`;   // wrong inner sign
+    const w3 = `${oneOver(a)}e^{${a}x} + C`;                        // missing constant
+    const w4 = `-${oneOver(a)}e^{${a}x ${sign(b)} ${abs(b)}} + C`;
+    const {choices:chE2, correctIndex:ciE2} = finalizeChoices([w1,w2,w3,w4], correct, 5);
+    return {skill:"calculus", type:"mcq", prompt, choices:chE2, correctIndex:ciE2, hint:`\\int e^{ax}dx = e^{ax}/a + C`, explain:`Chain factor \\(${oneOver(a)||'1'}\\).`};
   }
   function genDefiniteIntegralPoly(){
     const a = rng(1,6) * (Math.random()<0.3?-1:1);
@@ -415,6 +597,15 @@
       genIntegralExp,
       genDefiniteIntegralPoly
     ])();
+    if (skill==="probability") return choice([
+      genCoinBinom,
+      genTwoDiceSum,
+      genIndependence,
+      genExpectedDie,
+      genChoose,
+      genBayesLikelihoods,
+      genBayesGivenB
+    ])();
     return choice([
       genArithmetic,
       genLinear,
@@ -425,7 +616,12 @@
       genIntegralPoly,
       genIntegralTrig,
       genIntegralExp,
-      genDefiniteIntegralPoly
+      genDefiniteIntegralPoly,
+      genCoinBinom,
+      genTwoDiceSum,
+      genIndependence,
+      genExpectedDie,
+      genChoose
     ])();
   }
 
@@ -449,8 +645,8 @@
     const p = state.queue[state.index]; state.current = p;
     $("skillTag").textContent = p.skill.charAt(0).toUpperCase()+p.skill.slice(1);
     $("progressTag").textContent = `${state.index+1} / ${state.total}`;
-    $("prompt").innerHTML = p.prompt; typeset($("prompt"));
-    $("hint").style.display="none"; $("hint").innerHTML = p.hint || ""; typeset($("hint"));
+    $("prompt").innerHTML = p.prompt;
+    $("hint").style.display="none"; $("hint").innerHTML = p.hint || "";
     $("feedback").style.display="none";
     $("sessionBar").style.width = Math.round((state.index/state.total)*100) + "%";
     // snap overlay to top for each new problem on mobile
@@ -459,18 +655,20 @@
     $("instruction").textContent = "Choose the correct answer.";
     const area = $("mcqArea"); area.innerHTML="";
     p.choices.forEach((c,i)=>{ const btn=document.createElement("button"); btn.className="secondary"; btn.innerHTML = `\\(${c}\\)`; btn.addEventListener("click", ()=> checkMCQ(i)); area.appendChild(btn); });
-    $("mcqArea").style.display="grid"; $("inputArea").style.display="none"; typeset($("mcqArea"));
+    $("mcqArea").style.display="grid"; $("inputArea").style.display="none";
+    // Typeset the entire card once at the end for reliability
+    typeset($("problemCard"));
   }
   function checkNumeric(){
     const p = state.current; if (!p) return; const val = parseNumber($("answerInput").value);
     const ok = nearlyEqual(val, p.answer); const panel = $("feedback"); panel.style.display="block";
-    if (ok){ panel.innerHTML = `✅ Correct! ${p.explain ? '<br>'+p.explain : ''}`; typeset(panel); state.index++; setTimeout(nextProblem, 450); }
-    else { panel.innerHTML = `❌ Not quite. ${p.explain ? '<br>'+p.explain : ''}<br><span class=\"subtle\">Expected approximately ${fmt(p.answer)}.</span>`; typeset(panel); state.queue.push(makeProblem(p.skill)); state.total++; $("progressTag").textContent = `${state.index+1} / ${state.total}`; }
+    if (ok){ panel.innerHTML = `✅ Correct! ${p.explain ? '<br>'+p.explain : ''}`; typeset($("problemCard")); state.index++; setTimeout(nextProblem, 450); }
+    else { panel.innerHTML = `❌ Not quite. ${p.explain ? '<br>'+p.explain : ''}<br><span class=\"subtle\">Expected approximately ${fmt(p.answer)}.</span>`; typeset($("problemCard")); state.queue.push(makeProblem(p.skill)); state.total++; $("progressTag").textContent = `${state.index+1} / ${state.total}`; }
   }
   function checkMCQ(idx){
     const p = state.current; if (!p) return; const correct = idx===p.correctIndex; const panel = $("feedback"); panel.style.display="block";
-    if (correct){ panel.innerHTML = `✅ Correct! ${p.explain ? '<br>'+p.explain : ''}`; typeset(panel); state.index++; setTimeout(nextProblem, 450); }
-    else { panel.innerHTML = `❌ Not quite. ${p.explain ? '<br>'+p.explain : ''}`; typeset(panel); state.queue.push(makeProblem(p.skill)); state.total++; $("progressTag").textContent = `${state.index+1} / ${state.total}`; }
+    if (correct){ panel.innerHTML = `✅ Correct! ${p.explain ? '<br>'+p.explain : ''}`; typeset($("problemCard")); state.index++; setTimeout(nextProblem, 450); }
+    else { panel.innerHTML = `❌ Not quite. ${p.explain ? '<br>'+p.explain : ''}`; typeset($("problemCard")); state.queue.push(makeProblem(p.skill)); state.total++; $("progressTag").textContent = `${state.index+1} / ${state.total}`; }
     // Ensure panel stays visible and spaced after showing feedback
     try{ $("problemCard").scrollTo({top:0, behavior:'smooth'}); }catch(_){ }
   }
