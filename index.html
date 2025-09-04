@@ -86,7 +86,12 @@
     .prompt{font-size:clamp(17px,4.2vw,20px); font-weight:800; margin:6px 0 10px 0; line-height:1.3}
     .subtle{ color:var(--ink); opacity:.75; font-size:clamp(12px,3.4vw,13px); margin-bottom:8px }
     .mcq{ display:grid; gap:12px; margin-top:10px; margin-bottom:12px; grid-template-columns:1fr }
-    .mcq button{text-align:left; background:var(--card); padding:12px 14px; min-height:46px; font-size:clamp(15px,4.0vw,17px); touch-action:manipulation; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); color:var(--ink) }
+    .mcq button{text-align:left; background:var(--card); padding:12px 14px; min-height:46px; font-size:clamp(15px,4.0vw,17px); touch-action:manipulation; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); color:var(--ink); white-space:normal }
+    /* Ensure MathJax display math lays out matrices over multiple lines inside buttons */
+    .mcq button mjx-container{ display:block !important; overflow:visible }
+    .mcq button mjx-container[display="true"]{ margin: 4px 0; text-align:left !important }
+    /* Left-align display math in prompts and within the session card */
+    .problem-card mjx-container[display="true"]{ text-align:left !important; margin-left:0 !important }
     /* Session buttons */
     .problem-card .row button.secondary{ background:var(--card); color:var(--ink); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08) }
     .problem-card .row button.secondary:hover,
@@ -173,6 +178,13 @@
       </div>
 
       <div class="card">
+        <div class="pill">Skill</div>
+        <div class="skill-title">Linear Algebra</div>
+        <div class="skill-desc">2×2 matrix ops, small vectors, 2×2 det.</div>
+        <button data-skill="linalg">Practice</button>
+      </div>
+
+      <div class="card">
         <div class="pill">Mode</div>
         <div class="skill-title">Mixed Session</div>
         <div class="skill-desc">A short set across all skills. 10 questions, instant feedback.</div>
@@ -240,6 +252,18 @@
   const abs = (v)=> Math.abs(v);
   const lin = (k,m,x='x')=> `${k}${x} ${sign(m)} ${abs(m)}`;
   const coef = (k)=> k===1? '' : (k===-1? '-' : String(k));
+  // Matrix/Vector helpers (small sizes for mental math)
+  const mat2 = (a,b,c,d)=> [[a,b],[c,d]];
+  const vec = (...xs)=> xs.map(Number);
+  const mat2MulVec2 = (M,v)=> [ M[0][0]*v[0] + M[0][1]*v[1], M[1][0]*v[0] + M[1][1]*v[1] ];
+  const mat2Mul = (A,B)=> [
+    [A[0][0]*B[0][0] + A[0][1]*B[1][0], A[0][0]*B[0][1] + A[0][1]*B[1][1]],
+    [A[1][0]*B[0][0] + A[1][1]*B[1][0], A[1][0]*B[0][1] + A[1][1]*B[1][1]]
+  ];
+  const det2 = (M)=> M[0][0]*M[1][1] - M[0][1]*M[1][0];
+  // Use escaped backslashes so JS strings preserve LaTeX commands
+  const matToLatex = (rows)=> `\\begin{bmatrix} ${rows.map(r=> r.map(x=> fmt(x)).join(' & ')).join(' \\\\ ')} \\end{bmatrix}`;
+  const vecToLatex = (v)=> `\\begin{bmatrix} ${v.map(x=> fmt(x)).join(' \\\\ ')} \\end{bmatrix}`;
   // Format polynomial Ax^2 + Bx + C with 0-term removal
   function polyStr(A,B,C){
     const terms=[];
@@ -656,6 +680,75 @@
     const {choices, correctIndex} = buildNumericMCQ(ans);
     return {skill:"calculus", type:"mcq", prompt, choices, correctIndex, hint:`Use FTOC on a linear function.`, explain:`Antiderivative: \\(${fracStr(a,2)}x^2 ${sign(b)} ${abs(b)}x\\).`};
   }
+  // Linear Algebra generators
+  function genLA_Mat2Vec2(){
+    // [ [a,b],[c,d] ] * [x;y]
+    const a=rng(-3,3)||1, b=rng(-3,3), c=rng(-3,3), d=rng(-3,3)||1;
+    const x=rng(-3,3), y=rng(-3,3);
+    const M = mat2(a,b,c,d); const v = vec(x,y); const r = mat2MulVec2(M,v);
+    const prompt = `Compute \\[ ${matToLatex(M)} \\cdot ${vecToLatex(v)} \\]`;
+    const correct = vecToLatex(r);
+    // Distractors: swapped rows, transposed use, sign error
+    const d1 = vecToLatex([r[1], r[0]]);
+    const d2 = vecToLatex([ a*x + c*y, b*x + d*y ]); // using columns incorrectly
+    const d3 = vecToLatex([ a*x - b*y, c*x - d*y ]);
+    const d4 = vecToLatex([ b*x + a*y, d*x + c*y ]);
+    const {choices, correctIndex} = finalizeChoices([d1,d2,d3,d4], correct, 5);
+    const hint = `Row-by-vector: first entry is $${a}\\cdot${x} + ${b}\\cdot${y}$.`;
+    const explain = `$=${vecToLatex([a*x + b*y, c*x + d*y])}$.`;
+    return {skill:"linalg", type:"mcq", prompt, choices, correctIndex, hint, explain};
+  }
+  function genLA_Det2(){
+    const a=rng(-4,4), b=rng(-4,4), c=rng(-4,4), d=rng(-4,4);
+    const M = mat2(a,b,c,d); const val = det2(M);
+    const prompt = `Compute \\[ \\det\\,${matToLatex(M)} \\]`;
+    const correct = fmt(val);
+    const {choices, correctIndex} = finalizeChoices([ fmt(a*d + b*c), fmt(a*b + c*d), fmt(a-d), fmt(b-c) ], correct, 5);
+    const hint = `$\\det\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}=ad-bc$.`;
+    const explain = `$= ${a}\\cdot${d} - ${b}\\cdot${c} = ${correct}$.`;
+    return {skill:"linalg", type:"mcq", prompt, choices, correctIndex, hint, explain};
+  }
+  function genLA_Mat2Mat2(){
+    // A(2x2)*B(2x2)
+    const A = mat2(rng(-3,3), rng(-3,3), rng(-3,3), rng(-3,3));
+    const B = mat2(rng(-3,3), rng(-3,3), rng(-3,3), rng(-3,3));
+    const R = mat2Mul(A,B);
+    const prompt = `Compute \\[ ${matToLatex(A)} \\cdot ${matToLatex(B)} \\]`;
+    const correct = matToLatex(R);
+    // Distractors: BA, transpose result, and one with swapped middle terms
+    const BA = mat2Mul(B,A);
+    const d1 = matToLatex(BA);
+    const d2 = matToLatex([[R[0][1],R[0][0]],[R[1][1],R[1][0]]]);
+    const d3 = matToLatex([[A[0][0]*B[0][0] + A[1][0]*B[1][0], A[0][1]*B[0][1] + A[1][1]*B[1][1]], [A[1][0]*B[0][0] + A[0][0]*B[1][0], A[1][1]*B[0][1] + A[0][1]*B[1][1]]]);
+    const d4 = matToLatex([[R[0][0],R[1][0]],[R[0][1],R[1][1]]]);
+    const {choices, correctIndex} = finalizeChoices([d1,d2,d3,d4], correct, 5);
+    const hint = `Row-by-column multiplication.`;
+    const explain = `First entry: $(${A[0][0]})(${B[0][0]})+(${A[0][1]})(-${-B[1][0]})$ etc.`;
+    return {skill:"linalg", type:"mcq", prompt, choices, correctIndex, hint, explain};
+  }
+  function genLA_Trace(){
+    const n = choice([2,3]);
+    const M = Array.from({length:n}, _=> Array.from({length:n}, _=> rng(-3,3)));
+    const tr = M.reduce((s,_,i)=> s + M[i][i], 0);
+    const prompt = `Compute \\[ \\operatorname{tr}\\,${matToLatex(M)} \\]`;
+    const correct = fmt(tr);
+    const {choices, correctIndex} = finalizeChoices([ fmt(tr+1), fmt(tr-1), fmt(-tr), fmt(tr+2) ], correct, 5);
+    const hint = `Sum of diagonal entries.`;
+    const explain = `$=${M.map((r,i)=>M[i][i]).join(' + ')} = ${correct}$.`;
+    return {skill:"linalg", type:"mcq", prompt, choices, correctIndex, hint, explain};
+  }
+  function genLA_Dot(){
+    const n = choice([2,3]);
+    const v = Array.from({length:n}, _=> rng(-3,3));
+    const w = Array.from({length:n}, _=> rng(-3,3));
+    const dot = v.reduce((s,vi,i)=> s + vi*w[i], 0);
+    const prompt = `Compute \\[ ${vecToLatex(v)} \\cdot ${vecToLatex(w)} \\]`;
+    const correct = fmt(dot);
+    const {choices, correctIndex} = finalizeChoices([ fmt(dot+1), fmt(dot-1), fmt(-dot), fmt(dot+2) ], correct, 5);
+    const hint = `Multiply components and add.`;
+    const explain = `$=${v.map((vi,i)=>`${vi}\\cdot${w[i]}`).join(' + ')} = ${correct}$.`;
+    return {skill:"linalg", type:"mcq", prompt, choices, correctIndex, hint, explain};
+  }
   function genLimit(){
     const x0 = rng(-5,5);
     const prompt = `Compute \\( \\lim_{h\\to 0} \\dfrac{( ${x0}+h )^2 - (${x0})^2}{h} \\).`;
@@ -685,6 +778,13 @@
       genBayesLikelihoods,
       genBayesGivenB
     ])();
+    if (skill==="linalg") return choice([
+      genLA_Mat2Vec2,
+      genLA_Det2,
+      genLA_Mat2Mat2,
+      genLA_Trace,
+      genLA_Dot
+    ])();
     return choice([
       genArithmetic,
       genLinear,
@@ -700,7 +800,12 @@
       genTwoDiceSum,
       genIndependence,
       genExpectedDie,
-      genChoose
+      genChoose,
+      genLA_Mat2Vec2,
+      genLA_Det2,
+      genLA_Mat2Mat2,
+      genLA_Trace,
+      genLA_Dot
     ])();
   }
 
@@ -735,7 +840,13 @@
     // Always render as MCQ for mobile friendliness
     $("instruction").textContent = "Choose the correct answer.";
     const area = $("mcqArea"); area.innerHTML="";
-    p.choices.forEach((c,i)=>{ const btn=document.createElement("button"); btn.className="secondary"; btn.innerHTML = `\\(${c}\\)`; btn.addEventListener("click", ()=> checkMCQ(i)); area.appendChild(btn); });
+    p.choices.forEach((c,i)=>{
+      const btn=document.createElement("button"); btn.className="secondary";
+      const isMatrix = /\\begin\{bmatrix\}|\\begin\{pmatrix\}/.test(c);
+      btn.innerHTML = isMatrix ? `\\[${c}\\]` : `\\(${c}\\)`;
+      btn.addEventListener("click", ()=> checkMCQ(i));
+      area.appendChild(btn);
+    });
     $("mcqArea").style.display="grid"; $("inputArea").style.display="none";
     // Typeset the entire card once at the end for reliability
     typeset($("problemCard"));
