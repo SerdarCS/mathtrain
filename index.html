@@ -115,7 +115,7 @@
       <div class="card">
         <div class="pill">Skill</div>
         <div class="skill-title">Calculus Intuition</div>
-        <div class="skill-desc">Derivative-at-a-point patterns, simple limits.</div>
+        <div class="skill-desc">Derivatives, limits, and basic integrals.</div>
         <button data-skill="calculus">Practice</button>
       </div>
 
@@ -165,6 +165,17 @@
   const choice=(arr)=>arr[Math.floor(Math.random()*arr.length)];
   const shuffle=(arr)=>arr.map(v=>[Math.random(),v]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]);
   const fmt = (x)=> (Math.abs(x) < 1e-12 ? "0" : (Number.isInteger(x) ? String(x) : String(+x.toFixed(6))).replace(/\.0+$/,''));
+  const gcd = (a,b)=>{ a=Math.abs(a); b=Math.abs(b); while(b){ [a,b]=[b,a%b]; } return a||1; };
+  const fracStr = (num, den)=>{ const s = (den<0?-1:1); num*=s; den*=s; const g=gcd(num,den); num/=g; den/=g; return den===1? String(num):`\\frac{${num}}{${den}}`; };
+  const sign = (v)=> v>=0?'+':'-';
+  const abs = (v)=> Math.abs(v);
+  const lin = (k,m,x='x')=> `${k}${x} ${sign(m)} ${abs(m)}`;
+  const oneOver = (k)=>{
+    if (k===1) return '';
+    if (k===-1) return '-';
+    const s = k<0?'-':'';
+    return `${s}\\frac{1}{${Math.abs(k)}}`;
+  };
   // Build multiple-choice numeric options around the correct answer
   function buildNumericMCQ(ans){
     const correct = fmt(ans);
@@ -266,18 +277,37 @@
       ans = n * (k*a+m)**(n-1) * k;
       hint = `\\((u^n)' = n u^{n-1} u'\\) with \\(u=${k}x+${m}\\).`;
       explain = `\\(f'(x)=${n}(${k}x+${m})^{${n-1}}\\cdot ${k}\\). Evaluate at \\(x=${a}\\).`;
+      // 50%: offer a symbolic unevaluated answer to avoid calculators
+      if (Math.random()<0.5){
+        const correct = `${n}(${k}\\cdot ${a}+${m})^{${n-1}}\\cdot ${k}`;
+        const distractors=[ `${n}(${k}\\cdot ${a}+${m})^{${n}}`, `${n-1}(${k}\\cdot ${a}+${m})^{${n-1}}\\cdot ${k}`, `${n}(${k}x+${m})^{${n-1}}` ];
+        const opts = shuffle([correct,...distractors]);
+        return {skill:"calculus", type:"mcq", prompt, choices:opts, correctIndex:opts.indexOf(correct), hint, explain};
+      }
     } else if (pattern==="sinLinear"){
       const k=rng(2,6), m=rng(-3,3);
       prompt = `Compute \\(f'(${a})\\) for \\(f(x)=\\sin(${k}x ${m>=0?'+':'-'} ${Math.abs(m)})\\).`;
       ans = Math.cos(k*a + m) * k;
       hint = `\\((\\sin u)' = \\cos u \\cdot u'\\) with \\(u=${k}x+${m}\\).`;
       explain = `\\(f'(x)=${k}\\cos(${k}x+${m})\\). Evaluate at \\(x=${a}\\).`;
+      if (Math.random()<0.55){
+        const correct = `${k}\\cos(${k*a + m})`;
+        const distractors = [ `\\cos(${k*a + m})`, `${k}\\sin(${k*a + m})`, `-${k}\\cos(${k*a + m})` ];
+        const opts=shuffle([correct,...distractors]);
+        return {skill:"calculus", type:"mcq", prompt, choices:opts, correctIndex:opts.indexOf(correct), hint, explain};
+      }
     } else if (pattern==="expQuad"){
       const k=rng(1,3), m=rng(1,3);
       prompt = `Compute \\(f'(${a})\\) for \\(f(x)=e^{${k}x^2 + ${m}}\\).`;
       ans = Math.exp(k*a*a + m) * (2*k*a);
       hint = `\\((e^{u})' = e^{u}\\cdot u'\\) with \\(u=${k}x^2+${m}\\).`;
       explain = `\\(f'(x)=e^{${k}x^2+${m}}\\cdot ${2*k}x\\). Evaluate at \\(x=${a}\\).`;
+      if (Math.random()<0.55){
+        const correct = `e^{${k*a*a + m}}\\cdot ${2*k}\\cdot ${a}`;
+        const distractors = [ `${2*k}e^{${k*a*a+m}}`, `e^{${k}x^2+${m}}\\cdot ${2*k}x`, `e^{${k*a*a + m}}` ];
+        const opts=shuffle([correct,...distractors]);
+        return {skill:"calculus", type:"mcq", prompt, choices:opts, correctIndex:opts.indexOf(correct), hint, explain};
+      }
     } else {
       const A=rng(1,4), B=rng(-4,4), C=rng(1,4);
       prompt = `Compute \\(f'(${a})\\) for \\(f(x)=(${A}x ${B>=0?'+':'-'} ${Math.abs(B)})\\sin(${C}x)\\).`;
@@ -285,9 +315,73 @@
       ans = fp;
       hint = `Product rule: \\(u'v + uv'\\), and \\((\\sin cx)'=c\\cos cx\\).`;
       explain = `\\(f'(x)=${A}\\sin(${C}x)+(${A}x+${B})\\cdot ${C}\\cos(${C}x)\\). Evaluate at \\(x=${a}\\).`;
+      if (Math.random()<0.6){
+        const correct = `${A}\\sin(${C*a}) + (${A}\\cdot ${a}+${B})\\cdot ${C}\\cos(${C*a})`;
+        const distractors = [ `${A}\\cos(${C*a}) + (${A}\\cdot ${a}+${B})\\cdot ${C}\\sin(${C*a})`, `${A}\\sin(${C*a}) + (${A}x+${B})\\cdot ${C}\\cos(${C*a})`, `${A}\\sin(${C*a}) + (${A}\\cdot ${a}+${B})\\cos(${C*a})` ];
+        const opts=shuffle([correct,...distractors]);
+        return {skill:"calculus", type:"mcq", prompt, choices:opts, correctIndex:opts.indexOf(correct), hint, explain};
+      }
     }
     const {choices, correctIndex} = buildNumericMCQ(ans);
     return {skill:"calculus", type:"mcq", prompt, choices, correctIndex, hint, explain};
+  }
+  // Basic integrals
+  function genIntegralPoly(){
+    const a = rng(1,6) * (Math.random()<0.3?-1:1);
+    const n = rng(0,3);
+    const prompt = `Find an antiderivative: \\int ${a}x^{${n}}\\,dx`;
+    const coeff = fracStr(a, n+1);
+    const correct = `${coeff}x^{${n+1}} + C`;
+    const d1 = `${a}x^{${n+1}} + C`;
+    const d2 = `${coeff}x^{${n}} + C`;
+    const d3 = `${fracStr(a, n+2)}x^{${n+2}} + C`;
+    const opts = shuffle([correct, d1, d2, d3]);
+    return {skill:"calculus", type:"mcq", prompt:`Compute: \\( \\int ${a}x^{${n}}\\,dx \\)`, choices:opts, correctIndex:opts.indexOf(correct), hint:`Power rule: \\int x^n dx = x^{n+1}/(n+1) + C`, explain:`Antiderivative is \\(${correct}\\)`};
+  }
+  function genIntegralTrig(){
+    const k = rng(1,5) * (Math.random()<0.2?-1:1);
+    const m = rng(-3,3);
+    if (Math.random()<0.5){
+      // integral of cos(kx+m)
+      const prompt = `Compute: \\( \\int \\cos(${k}x ${sign(m)} ${abs(m)})\\,dx \\)`;
+      const correct = `${oneOver(k)}\\sin(${k}x ${sign(m)} ${abs(m)}) + C`;
+      const w1 = `-${oneOver(k)}\\sin(${k}x ${sign(m)} ${abs(m)}) + C`;
+      const w2 = `${oneOver(k)}\\cos(${k}x ${sign(m)} ${abs(m)}) + C`;
+      const w3 = `${k}\\sin(${k}x ${sign(m)} ${abs(m)}) + C`;
+      const opts = shuffle([correct,w1,w2,w3]);
+      return {skill:"calculus", type:"mcq", prompt, choices:opts, correctIndex:opts.indexOf(correct), hint:`\\int \\cos(u)du = \\sin(u) + C, \\; du = ${k}dx`, explain:`Multiply by \\(${oneOver(k)||'1'}\\) for chain.`};
+    } else {
+      // integral of sin(kx+m)
+      const prompt = `Compute: \\( \\int \\sin(${k}x ${sign(m)} ${abs(m)})\\,dx \\)`;
+      const factor = fracStr(-1, k);
+      const correct = `${factor}\\cos(${k}x ${sign(m)} ${abs(m)}) + C`;
+      const w1 = `${fracStr(1,k)}\\cos(${k}x ${sign(m)} ${abs(m)}) + C`;
+      const w2 = `${factor}\\sin(${k}x ${sign(m)} ${abs(m)}) + C`;
+      const w3 = `${k}\\cos(${k}x ${sign(m)} ${abs(m)}) + C`;
+      const opts = shuffle([correct,w1,w2,w3]);
+      return {skill:"calculus", type:"mcq", prompt, choices:opts, correctIndex:opts.indexOf(correct), hint:`\\int \\sin(u)du = -\\cos(u) + C`, explain:`Chain factor \\(${oneOver(k)||'1'}\\).`};
+    }
+  }
+  function genIntegralExp(){
+    const a = choice([1,2,3,4]) * (Math.random()<0.25?-1:1);
+    const b = rng(-3,3);
+    const prompt = `Compute: \\( \\int e^{${a}x ${sign(b)} ${abs(b)}}\\,dx \\)`;
+    const correct = `${oneOver(a)}e^{${a}x ${sign(b)} ${abs(b)}} + C`;
+    const w1 = `e^{${a}x ${sign(b)} ${abs(b)}} + C`;
+    const w2 = `${a}e^{${a}x ${sign(b)} ${abs(b)}} + C`;
+    const w3 = `${oneOver(a)}e^{${a}x} + C`;
+    const opts = shuffle([correct,w1,w2,w3]);
+    return {skill:"calculus", type:"mcq", prompt, choices:opts, correctIndex:opts.indexOf(correct), hint:`\\int e^{ax}dx = e^{ax}/a + C`, explain:`Chain factor \\(${oneOver(a)||'1'}\\).`};
+  }
+  function genDefiniteIntegralPoly(){
+    const a = rng(1,6) * (Math.random()<0.3?-1:1);
+    const b = rng(-4,4);
+    const p = rng(-3,0);
+    const q = rng(1,4);
+    const prompt = `Compute: \\( \\int_{${p}}^{${q}} (${a}x ${sign(b)} ${abs(b)})\\,dx \\)`;
+    const ans = 0.5*a*(q*q - p*p) + b*(q-p);
+    const {choices, correctIndex} = buildNumericMCQ(ans);
+    return {skill:"calculus", type:"mcq", prompt, choices, correctIndex, hint:`Use FTOC on a linear function.`, explain:`Antiderivative: \\(${fracStr(a,2)}x^2 ${sign(b)} ${abs(b)}x\\).`};
   }
   function genLimit(){
     const x0 = rng(-5,5);
@@ -301,8 +395,26 @@
   function makeProblem(skill){
     if (skill==="arithmetic") return choice([genArithmetic, genArithmetic, genArithmetic])();
     if (skill==="algebra")   return choice([genLinear, genExpand, genFactor])();
-    if (skill==="calculus")  return choice([genDerivativePoint, genLimit])();
-    return choice([genArithmetic, genLinear, genExpand, genFactor, genDerivativePoint, genLimit])();
+    if (skill==="calculus")  return choice([
+      genDerivativePoint,
+      genLimit,
+      genIntegralPoly,
+      genIntegralTrig,
+      genIntegralExp,
+      genDefiniteIntegralPoly
+    ])();
+    return choice([
+      genArithmetic,
+      genLinear,
+      genExpand,
+      genFactor,
+      genDerivativePoint,
+      genLimit,
+      genIntegralPoly,
+      genIntegralTrig,
+      genIntegralExp,
+      genDefiniteIntegralPoly
+    ])();
   }
 
   const state = { running:false, queue:[], total:10, index:0, current:null, skill:"mixed" };
