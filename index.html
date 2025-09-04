@@ -56,11 +56,9 @@
     body{ margin:0; background:var(--bg); color:var(--ink);
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial}
     header{ display:flex; align-items:center; justify-content:space-between;
-      padding:16px clamp(16px, 3vw, 28px); position:sticky; top:0; z-index:10;
-      background:linear-gradient(180deg, rgba(0,0,0,.15), transparent); position:sticky; }
-    /* Gradient blur overlay (fades top->bottom) */
-    header{ position:sticky }
-    header::before{ content:""; position:absolute; inset:0; pointer-events:none;
+      padding:16px clamp(16px, 3vw, 28px); position:sticky; top:0; z-index:10; background:transparent }
+    /* Fixed top blur that does not move with scroll; sits behind header */
+    .viewport-blur{ position:fixed; inset:0 auto auto 0; width:100%; height:72px; pointer-events:none; z-index:5;
       -webkit-backdrop-filter:saturate(140%) blur(8px); backdrop-filter:saturate(140%) blur(8px);
       -webkit-mask-image:linear-gradient(to bottom, rgba(0,0,0,1), rgba(0,0,0,0));
       mask-image:linear-gradient(to bottom, rgba(0,0,0,1), rgba(0,0,0,0)); }
@@ -127,15 +125,13 @@
     .problem-card{ padding-bottom:calc(env(safe-area-inset-bottom) + 24px) }
     body.modal-open header{ display:none }
     /* Sticky top bar so Home is always reachable */
-    /* Make the session top bar span the full viewport width */
-    .topbar{ position:sticky; top:0; z-index:2; padding-top:2px; padding-bottom:6px; box-shadow:none; background:linear-gradient(180deg, rgba(0,0,0,.15), transparent);
-      width:100vw; margin-left:calc(50% - 50vw); margin-right:calc(50% - 50vw);
-      padding-left:clamp(12px,3.5vw,22px); padding-right:clamp(12px,3.5vw,22px);
-    }
-    .topbar::before{ content:""; position:absolute; inset:0; pointer-events:none;
-      -webkit-backdrop-filter:saturate(140%) blur(8px); backdrop-filter:saturate(140%) blur(8px);
-      -webkit-mask-image:linear-gradient(to bottom, rgba(0,0,0,1), rgba(0,0,0,0));
-      mask-image:linear-gradient(to bottom, rgba(0,0,0,1), rgba(0,0,0,0)); }
+    /* Session header row should behave like normal content (no sticky bar) */
+    .topbar{ position:static; padding-top:0; padding-bottom:6px; box-shadow:none; background:transparent }
+    .topbar::before{ display:none }
+    /* Prevent any horizontal scrolling in page and session */
+    html, body{ overflow-x:hidden }
+    .session{ overflow-x:hidden }
+    .problem-card{ overflow-x:hidden }
     .topbar .pill{ font-size:11px; padding:0 }
     #homeBtn{ margin-left:auto; padding:6px 10px; font-size:12px; border-radius:10px }
     /* Feedback modal */
@@ -153,10 +149,11 @@
   </style>
 </head>
 <body>
+  <div class="viewport-blur" aria-hidden="true"></div>
   <header>
     <div class="brand" role="banner" aria-label="Algebra Sprint">
       <div class="logo" aria-hidden="true"></div>
-      <h1>Algebra Sprint</h1>
+      <h1 style="position:relative; z-index:11">Algebra Sprint</h1>
     </div>
     
   </header>
@@ -243,7 +240,7 @@
           </div>
         </div>
       </div>
-      <div class="footer">Shortcuts: Enter to check, H for hint.</div>
+      
     </section>
   </main>
 
@@ -894,8 +891,7 @@
   }
 
   document.querySelectorAll("#skills .card button").forEach(btn=>{ btn.addEventListener("click", ()=> startSession(btn.dataset.skill)); });
-  $("checkBtn").addEventListener("click", checkNumeric);
-  $("answerInput").addEventListener("keydown", (e)=>{ if (e.key==="Enter"){ e.preventDefault(); checkNumeric(); } if (e.key.toLowerCase()==="h"){ e.preventDefault(); toggleHint(); } });
+  // Keyboard shortcuts removed; use buttons only.
   $("hintBtn").addEventListener("click", toggleHint);
   $("skipBtn").addEventListener("click", ()=>{ state.index++; nextProblem(); });
   $("homeBtn").addEventListener("click", ()=>{
