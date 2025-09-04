@@ -69,23 +69,30 @@
     .skill-desc{font-size:13px; color:var(--ink-dim); min-height:34px}
     .progress{ height:10px; border-radius:999px; background:var(--muted); overflow:hidden; margin-top:10px }
     .bar{ height:100%; width:0%; background:linear-gradient(90deg, var(--accent), var(--accent-2)); transition:width .35s ease }
-    /* Open exercises in a fixed overlay panel to avoid page scroll */
-    .session{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; padding:clamp(12px,3vw,28px); background:rgba(0,0,0,.45); z-index:999 }
-    .session.open{ display:flex }
-    .problem-card{ background:var(--card); border-radius:var(--radius); padding:24px 22px 26px; border:1px solid rgba(255,255,255,.08); box-shadow:var(--shadow); width:min(960px,96vw); max-height:min(90vh,820px); overflow:auto; overscroll-behavior:contain }
+    /* Full-screen session that behaves like its own page */
+    .session{ position:fixed; inset:0; display:none; background:var(--bg); z-index:9999 }
+    .session.open{ display:block }
+    .problem-card{ position:relative; background:var(--card); border-radius:0; padding:clamp(14px,4vw,24px); border:none; box-shadow:none; width:100vw; height:100vh; overflow:auto; overscroll-behavior:contain; display:flex; flex-direction:column }
     .problem-card > .row:first-child{ margin-bottom:10px }
     body.modal-open{ overflow:hidden }
-    .prompt{font-size:18px; font-weight:800; margin:12px 0 14px 0; line-height:1.35}
-    .subtle{ color:var(--ink-dim); font-size:13px; margin-bottom:10px }
-    .mcq{ display:grid; gap:12px; margin-top:12px; margin-bottom:12px }
-    .mcq button{text-align:left; background:var(--muted); padding:12px 14px }
-    .answer-row{ display:flex; gap:10px; align-items:center; margin-top:10px }
+    .prompt{font-size:clamp(18px,4.8vw,22px); font-weight:800; margin:8px 0 12px 0; line-height:1.35}
+    .subtle{ color:var(--ink-dim); font-size:clamp(12px,3.8vw,14px); margin-bottom:10px }
+    .mcq{ display:grid; gap:14px; margin-top:12px; margin-bottom:14px; grid-template-columns:1fr }
+    .mcq button{text-align:left; background:var(--muted); padding:14px 16px; min-height:48px; font-size:clamp(16px,4.6vw,18px); touch-action:manipulation }
+    .answer-row{ display:none }
     input[type="text"]{ flex:1; padding:12px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.12);
       background:transparent; color:var(--ink); font-size:16px; outline:none }
     .feedback{ margin-top:12px; padding:10px 12px; border-radius:12px; background:var(--muted); display:none; font-weight:700 }
     .hint{ font-size:14px; color:var(--ink-dim); margin-top:8px; display:none }
     .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px }
-    .spacer{ height:16px }
+    .spacer{ height:20px }
+    .problem-card{ padding-bottom:calc(env(safe-area-inset-bottom) + 24px) }
+    body.modal-open header{ display:none }
+    @media (max-width:640px){
+      .controls{ display:none }
+      .mcq button, .row button{ width:100% }
+      .row{ gap:8px }
+    }
     .footer{ margin-top:26px; font-size:13px; color:var(--ink-dim); text-align:center }
     @media (max-width:560px){ .cards{ grid-template-columns: 1fr } }
   </style>
@@ -446,6 +453,8 @@
     $("hint").style.display="none"; $("hint").innerHTML = p.hint || ""; typeset($("hint"));
     $("feedback").style.display="none";
     $("sessionBar").style.width = Math.round((state.index/state.total)*100) + "%";
+    // snap overlay to top for each new problem on mobile
+    try{ $("problemCard").scrollTo({top:0, behavior:'instant'}); }catch(_){ try{ $("problemCard").scrollTop = 0; }catch(__){} }
     // Always render as MCQ for mobile friendliness
     $("instruction").textContent = "Choose the correct answer.";
     const area = $("mcqArea"); area.innerHTML="";
@@ -462,6 +471,8 @@
     const p = state.current; if (!p) return; const correct = idx===p.correctIndex; const panel = $("feedback"); panel.style.display="block";
     if (correct){ panel.innerHTML = `✅ Correct! ${p.explain ? '<br>'+p.explain : ''}`; typeset(panel); state.index++; setTimeout(nextProblem, 450); }
     else { panel.innerHTML = `❌ Not quite. ${p.explain ? '<br>'+p.explain : ''}`; typeset(panel); state.queue.push(makeProblem(p.skill)); state.total++; $("progressTag").textContent = `${state.index+1} / ${state.total}`; }
+    // Ensure panel stays visible and spaced after showing feedback
+    try{ $("problemCard").scrollTo({top:0, behavior:'smooth'}); }catch(_){ }
   }
 
   document.querySelectorAll("#skills .card button").forEach(btn=>{ btn.addEventListener("click", ()=> startSession(btn.dataset.skill)); });
