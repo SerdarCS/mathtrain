@@ -68,19 +68,22 @@
     .skill-desc{font-size:13px; color:var(--ink-dim); min-height:34px}
     .progress{ height:10px; border-radius:999px; background:var(--muted); overflow:hidden; margin-top:10px }
     .bar{ height:100%; width:0%; background:linear-gradient(90deg, var(--accent), var(--accent-2)); transition:width .35s ease }
-    .session{ margin-top:22px; display:none }
-    .problem-card{ background:var(--card); border-radius:var(--radius); padding:18px; border:1px solid rgba(255,255,255,.06); box-shadow:var(--shadow) }
-    .prompt{font-size:18px; font-weight:800; margin:0 0 12px 0}
-    .subtle{ color:var(--ink-dim); font-size:13px; margin-bottom:8px }
-    .mcq{ display:grid; gap:10px; margin-top:8px }
-    .mcq button{text-align:left; background:var(--muted)}
-    .answer-row{ display:flex; gap:10px; align-items:center; margin-top:8px }
+    /* Open exercises in a fixed overlay panel to avoid page scroll */
+    .session{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; padding:clamp(12px,3vw,28px); background:rgba(0,0,0,.45); z-index:999 }
+    .session.open{ display:flex }
+    .problem-card{ background:var(--card); border-radius:var(--radius); padding:22px; border:1px solid rgba(255,255,255,.08); box-shadow:var(--shadow); width:min(960px,96vw); max-height:min(90vh,820px); overflow:auto; overscroll-behavior:contain }
+    body.modal-open{ overflow:hidden }
+    .prompt{font-size:18px; font-weight:800; margin:12px 0 14px 0; line-height:1.35}
+    .subtle{ color:var(--ink-dim); font-size:13px; margin-bottom:10px }
+    .mcq{ display:grid; gap:12px; margin-top:12px; margin-bottom:12px }
+    .mcq button{text-align:left; background:var(--muted); padding:12px 14px }
+    .answer-row{ display:flex; gap:10px; align-items:center; margin-top:10px }
     input[type="text"]{ flex:1; padding:12px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.12);
       background:transparent; color:var(--ink); font-size:16px; outline:none }
     .feedback{ margin-top:12px; padding:10px 12px; border-radius:12px; background:var(--muted); display:none; font-weight:700 }
     .hint{ font-size:14px; color:var(--ink-dim); margin-top:8px; display:none }
-    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center }
-    .spacer{ height:14px }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px }
+    .spacer{ height:16px }
     .footer{ margin-top:26px; font-size:13px; color:var(--ink-dim); text-align:center }
     @media (max-width:560px){ .cards{ grid-template-columns: 1fr } }
   </style>
@@ -135,7 +138,7 @@
           <button class="secondary" id="homeBtn" style="margin-left:auto">Home</button>
         </div>
         <p class="prompt" id="prompt">Prompt goes here</p>
-        <p class="subtle" id="instruction">Type your answer. You can use fractions like 3/4, and symbols like \(\pi\), \(e\), and ^ for powers.</p>
+        <p class="subtle" id="instruction">Choose the correct answer.</p>
 
         <div id="inputArea" class="answer-row">
           <input type="text" id="answerInput" inputmode="decimal" aria-label="Your answer" placeholder="Type answer…" />
@@ -422,7 +425,8 @@
     state.running=true; state.skill=skill; state.index=0; state.queue=[]; state.total = (skill==="mixed") ? 10 : 8;
     for (let i=0;i<state.total;i++){ state.queue.push(makeProblem(skill==="mixed" ? "mixed" : skill)); }
     document.querySelectorAll("#skills .card button").forEach(b=>b.disabled=true);
-    $("session").style.display="block"; nextProblem();
+    $("session").classList.add("open"); document.body.classList.add('modal-open');
+    nextProblem();
   }
   function endSession(){
     $("sessionBar").style.width = "100%";
@@ -462,7 +466,7 @@
   $("answerInput").addEventListener("keydown", (e)=>{ if (e.key==="Enter"){ e.preventDefault(); checkNumeric(); } if (e.key.toLowerCase()==="h"){ e.preventDefault(); toggleHint(); } });
   $("hintBtn").addEventListener("click", toggleHint);
   $("skipBtn").addEventListener("click", ()=>{ state.index++; nextProblem(); });
-  $("homeBtn").addEventListener("click", ()=>{ state.running=false; document.querySelectorAll("#skills .card button").forEach(b=>b.disabled=false); $("session").style.display="none"; });
+  $("homeBtn").addEventListener("click", ()=>{ state.running=false; document.querySelectorAll("#skills .card button").forEach(b=>b.disabled=false); $("session").classList.remove("open"); document.body.classList.remove('modal-open'); });
   function toggleHint(){ const h=$("hint"); h.style.display = h.style.display==="none" ? "block" : "none"; typeset(h); }
 
   const root=document.documentElement; const savedTheme = localStorage.getItem('as_theme'); if (savedTheme){ root.setAttribute('data-theme', savedTheme); $("themeToggle").textContent = savedTheme==="light"?"🌙":"☀️"; }
