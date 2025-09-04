@@ -36,12 +36,24 @@
   <style>
     :root{
       --bg:#0f1222; --card:#171a2e; --ink:#e9ecff; --ink-dim:#b9bfe6;
-      --accent:#6ee7ff; --accent-2:#a8ff6e; --muted:#222640; --radius:16px;
-      --shadow:0 10px 30px rgba(0,0,0,.35);
+      --accent:#5df2c2; /* mint */
+      --accent-2:#2dd4bf; /* mint-teal blend for gradients */
+      --muted:#1b2a25; /* deep teal-muted for dark */
+      --radius:16px;
+      --shadow:0 10px 30px rgba(0,0,0,.35); --border:rgba(255,255,255,.06);
     }
-    [data-theme="light"]{
-      --bg:#f7f8ff; --card:#ffffff; --ink:#0f1126; --ink-dim:#30345a;
-      --accent:#1889ff; --accent-2:#00a36c; --muted:#ebedf7; --shadow:0 8px 24px rgba(16,24,40,.15);
+    @media (prefers-color-scheme: light){
+      :root{
+        --bg:#f6f8fd;           /* soft background */
+        --card:#ffffff;         /* clean white surfaces */
+        --ink:#111827;          /* near-black text for contrast */
+        --ink-dim:#4b5563;      /* muted text */
+        --accent:#5df2c2;       /* minty emerald */
+        --accent-2:#2dd4bf;     /* teal-mint */
+        --muted:#ecfdf5;        /* mint-tinted muted */
+        --border:rgba(16,24,40,.10);
+        --shadow:0 10px 24px rgba(16,24,40,.12);
+      }
     }
     *{box-sizing:border-box}
     body{ margin:0; background:var(--bg); color:var(--ink);
@@ -54,16 +66,16 @@
     .brand .logo{ width:36px; height:36px; border-radius:10px;
       background: radial-gradient(120% 120% at 10% 0%, var(--accent), transparent 60%),
                   radial-gradient(120% 120% at 90% 100%, var(--accent-2), transparent 60%), var(--card);
-      box-shadow:var(--shadow); border:1px solid rgba(255,255,255,.08);
+      box-shadow:var(--shadow); border:1px solid var(--border);
     }
     .brand h1{font-size:18px; margin:0; letter-spacing:.3px}
     .controls{display:flex; gap:10px; align-items:center}
-    button{ appearance:none; border:none; border-radius:12px; padding:12px 16px;
+    button{ appearance:none; border:1px solid var(--border); border-radius:12px; padding:12px 16px;
       background:var(--accent); color:#071018; font-weight:700; cursor:pointer; box-shadow:var(--shadow); }
-    button.secondary{ background:var(--muted); color:var(--ink); font-weight:600 }
+    button.secondary{ background:var(--muted); color:var(--ink); font-weight:600; border:1px solid var(--border) }
     main{ max-width:960px; margin:0 auto; padding:24px clamp(16px, 3vw, 28px); }
     .cards{ display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:14px; }
-    .card{ background:var(--card); border-radius:var(--radius); padding:16px; border:1px solid rgba(255,255,255,.06); box-shadow:var(--shadow); }
+    .card{ background:var(--card); border-radius:var(--radius); padding:16px; border:1px solid var(--border); box-shadow:var(--shadow); }
     .pill{ font-size:12px; padding:4px 8px; border-radius:999px; background:var(--muted); color:var(--ink-dim); font-weight:700 }
     .skill-title{font-weight:800; margin:6px 0 8px 0}
     .skill-desc{font-size:13px; color:var(--ink-dim); min-height:34px}
@@ -78,7 +90,7 @@
     .prompt{font-size:clamp(17px,4.2vw,20px); font-weight:800; margin:6px 0 10px 0; line-height:1.3}
     .subtle{ color:var(--ink-dim); font-size:clamp(12px,3.4vw,13px); margin-bottom:8px }
     .mcq{ display:grid; gap:12px; margin-top:10px; margin-bottom:12px; grid-template-columns:1fr }
-    .mcq button{text-align:left; background:var(--muted); padding:12px 14px; min-height:46px; font-size:clamp(15px,4.0vw,17px); touch-action:manipulation }
+    .mcq button{text-align:left; background:var(--muted); padding:12px 14px; min-height:46px; font-size:clamp(15px,4.0vw,17px); touch-action:manipulation; border:1px solid var(--border) }
     .answer-row{ display:none }
     input[type="text"]{ flex:1; padding:12px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.12);
       background:transparent; color:var(--ink); font-size:16px; outline:none }
@@ -89,7 +101,7 @@
     .problem-card{ padding-bottom:calc(env(safe-area-inset-bottom) + 24px) }
     body.modal-open header{ display:none }
     /* Sticky top bar so Home is always reachable */
-    .topbar{ position:sticky; top:0; z-index:2; background:var(--card); padding-top:2px; padding-bottom:6px; }
+    .topbar{ position:sticky; top:0; z-index:2; background:var(--card); padding-top:2px; padding-bottom:6px; border-bottom:1px solid var(--border); }
     .topbar .pill{ font-size:11px; padding:3px 7px }
     #homeBtn{ margin-left:auto; padding:6px 10px; font-size:12px; border-radius:10px }
     @media (max-width:640px){
@@ -107,9 +119,7 @@
       <div class="logo" aria-hidden="true"></div>
       <h1>Algebra Sprint — Minimal</h1>
     </div>
-    <div class="controls">
-      <button class="secondary" id="themeToggle" aria-label="Toggle theme">🌙</button>
-    </div>
+    
   </header>
 
   <main>
@@ -694,8 +704,7 @@
   });
   function toggleHint(){ const h=$("hint"); h.style.display = h.style.display==="none" ? "block" : "none"; typeset(h); }
 
-  const root=document.documentElement; const savedTheme = localStorage.getItem('as_theme'); if (savedTheme){ root.setAttribute('data-theme', savedTheme); $("themeToggle").textContent = savedTheme==="light"?"🌙":"☀️"; }
-  $("themeToggle").addEventListener("click", ()=>{ const isLight = root.getAttribute("data-theme")==="light"; root.setAttribute("data-theme", isLight? "dark":"light"); $("themeToggle").textContent = isLight? "🌙":"☀️"; localStorage.setItem('as_theme', isLight? 'dark':'light'); });
+  // Theme follows system preference via CSS prefers-color-scheme.
   // Ensure any static LaTeX on initial view is rendered
   typeset(document.body);
   </script>
